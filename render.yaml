@@ -1,0 +1,25 @@
+# Render.com Blueprint — one-click deploy configuration
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: taskflow-api
+    env: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false   # Set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true   # Render auto-generates a secure random value
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false   # Set to your Vercel frontend URL
+      - key: LOG_LEVEL
+        value: info
