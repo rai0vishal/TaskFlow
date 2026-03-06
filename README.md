@@ -21,6 +21,18 @@
 
 ---
 
+## 🌐 Live Demo
+
+| | Link |
+|---|---|
+| 🖥 **Frontend App** | [task-flow-omega-khaki.vercel.app](https://task-flow-omega-khaki.vercel.app) |
+| 🔗 **Backend API** | [taskflow-2o2c.onrender.com](https://taskflow-2o2c.onrender.com/api/health) |
+| 📑 **API Documentation (Swagger)** | **[taskflow-2o2c.onrender.com/api-docs](https://taskflow-2o2c.onrender.com/api-docs)** |
+
+> ⚡ **Note:** The backend is hosted on Render's free tier and may take ~30 seconds to wake up on the first request.
+
+---
+
 ## ✨ Key Features
 
 | Category | Features |
@@ -269,19 +281,25 @@ LOG_LEVEL=debug
 
 ## 📑 API Documentation
 
-Interactive **Swagger UI** is available when the backend is running:
+### 🔴 Live Swagger UI
 
-```
-http://localhost:5000/api-docs
-```
+> **[https://taskflow-2o2c.onrender.com/api-docs](https://taskflow-2o2c.onrender.com/api-docs)**
 
-The raw OpenAPI 3.0 JSON spec can be accessed at:
+Full interactive API documentation powered by **Swagger (OpenAPI 3.0)**. You can explore all endpoints, view request/response schemas, and **test APIs directly from the browser**.
 
-```
-http://localhost:5000/api-docs.json
-```
+### Local Access
 
-The documentation includes all endpoints, request/response schemas, authentication requirements, and example payloads.
+| Resource | URL |
+|---|---|
+| Swagger UI | `http://localhost:5000/api-docs` |
+| Raw JSON Spec | `http://localhost:5000/api-docs.json` |
+
+### How to Use
+
+1. Open the Swagger link above
+2. Call `POST /auth/register` or `POST /auth/login` to get a JWT token
+3. Click the **🔓 Authorize** button → paste the token → click **Authorize**
+4. Now test any protected endpoint directly from the docs!
 
 ---
 

@@ -54,11 +54,14 @@ app.use(
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, Postman, etc.)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    if (!origin) return callback(null, true);
+
+    // Allow if origin is in the configured allowed list
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow same-origin requests (e.g. Swagger UI hosted on the same server)
+    // This handles cases where the server URL isn't explicitly in CORS_ORIGIN
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
