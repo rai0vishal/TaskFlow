@@ -1,4 +1,4 @@
-import { Calendar, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, Pencil, Trash2, AlertCircle, Clock } from 'lucide-react';
 
 const STATUS_COLORS = {
   'todo': 'bg-surface-100 text-surface-600 border border-surface-200',
@@ -22,11 +22,14 @@ const PRIORITY_DOTS = {
 };
 
 export default function TaskCard({ task, onEdit, onDelete }) {
-  const formattedDate = task.dueDate
-    ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+  const formattedDate = dueDate
+    ? dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
+  const now = new Date();
+  const isOverdue = dueDate && dueDate < now && task.status !== 'done';
+  const isDueSoon = !isOverdue && dueDate && (dueDate - now) <= (24 * 60 * 60 * 1000) && task.status !== 'done';
 
   return (
     <div className="group bg-white border border-surface-200 rounded-2xl p-6 shadow-sm hover:border-primary-200 hover:shadow-lg hover:shadow-primary-600/5 transition-all duration-300">
@@ -70,12 +73,26 @@ export default function TaskCard({ task, onEdit, onDelete }) {
           </span>
         </div>
 
-        {/* Due date */}
+        {/* Due date badges */}
         {formattedDate && (
-          <span className={`flex items-center gap-1.5 text-xs font-semibold ${isOverdue ? 'text-red-500' : 'text-surface-400'}`}>
-            <Calendar className="w-3.5 h-3.5" />
-            {formattedDate}
-          </span>
+          <div className="flex items-center">
+            {isOverdue ? (
+              <span className="flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-md border border-red-200">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Overdue
+              </span>
+            ) : isDueSoon ? (
+              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+                <Clock className="w-3.5 h-3.5" />
+                Due Soon
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-surface-500 bg-surface-50 px-2.5 py-1 rounded-md border border-surface-200">
+                <Calendar className="w-3.5 h-3.5" />
+                {formattedDate}
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>

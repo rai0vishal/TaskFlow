@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import Navbar from '../components/Navbar';
 import TaskCard from '../components/TaskCard';
 import TaskModal from '../components/TaskModal';
+import Button from '../components/Button';
 import * as taskApi from '../api/tasks';
 import toast from 'react-hot-toast';
 import { Plus, Search, Filter, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
@@ -71,9 +71,7 @@ export default function TaskManagement() {
   const openEdit = (task) => { setEditingTask(task); setShowModal(true); };
 
   return (
-    <div className="min-h-screen bg-surface-50 font-sans">
-      <Navbar />
-
+    <div className="font-sans">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -81,13 +79,10 @@ export default function TaskManagement() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-surface-900 tracking-tight">Tasks</h1>
             <p className="text-surface-500 font-medium mt-1">{pagination.total} total task{pagination.total !== 1 ? 's' : ''}</p>
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-primary-600 text-white shadow-md shadow-primary-500/20 hover:shadow-lg hover:shadow-primary-500/30 hover:bg-primary-700 transition-all duration-300 active:scale-95"
-          >
+          <Button onClick={openCreate} className="px-6 gap-2" size="md">
             <Plus className="w-5 h-5" />
             New Task
-          </button>
+          </Button>
         </div>
 
         {/* Filters */}
@@ -127,12 +122,9 @@ export default function TaskManagement() {
               {statusFilter ? 'Try changing the filter.' : 'Create your first task to get started.'}
             </p>
             {!statusFilter && (
-              <button
-                onClick={openCreate}
-                className="px-6 py-3 rounded-xl text-sm font-semibold bg-primary-600 text-white shadow-md shadow-primary-500/20 hover:shadow-lg hover:bg-primary-700 transition-all duration-300 active:scale-95"
-              >
+              <Button onClick={openCreate} className="px-6" size="md">
                 <Plus className="w-4 h-4 inline mr-1" /> Create Task
-              </button>
+              </Button>
             )}
           </div>
         ) : (
@@ -146,24 +138,26 @@ export default function TaskManagement() {
         {/* Pagination */}
         {pagination.totalPages > 1 && (
           <div className="flex items-center justify-center gap-3 mt-8">
-            <button
+            <Button
               onClick={() => fetchTasks(pagination.page - 1)}
               disabled={pagination.page <= 1}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-surface-600 bg-white border border-surface-200 shadow-sm hover:bg-surface-50 hover:text-surface-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              variant="outline"
+              size="sm"
             >
-              <ChevronLeft className="w-4 h-4" /> Prev
-            </button>
-            <span className="text-sm font-medium text-surface-500">
-              Page <span className="text-surface-900 font-bold">{pagination.page}</span> of{' '}
-              <span className="text-surface-900 font-bold">{pagination.totalPages}</span>
+              <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+            </Button>
+            <span className="text-sm font-medium text-surface-500 flex items-center">
+              Page <span className="text-surface-900 font-bold mx-1.5">{pagination.page}</span> of 
+              <span className="text-surface-900 font-bold mx-1.5">{pagination.totalPages}</span>
             </span>
-            <button
+            <Button
               onClick={() => fetchTasks(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-surface-600 bg-white border border-surface-200 shadow-sm hover:bg-surface-50 hover:text-surface-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              variant="outline"
+              size="sm"
             >
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
+              Next <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
           </div>
         )}
       </main>

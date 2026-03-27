@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTasks } from '../api/tasks';
-import Navbar from '../components/Navbar';
 import { CheckCircle2, Clock, AlertCircle, ListTodo, TrendingUp } from 'lucide-react';
 
 export default function Dashboard() {
@@ -48,9 +47,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 font-sans">
-      <Navbar />
-
+    <div className="font-sans">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome */}
         <div className="mb-8">

@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { UserPlus, User, Mail, Lock, ArrowRight } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
+import FormInput from '../components/FormInput';
+import Button from '../components/Button';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -34,103 +36,77 @@ export default function Register() {
     }
   };
 
-  const inputClass =
-    'w-full pl-12 pr-4 py-3 rounded-xl bg-white border border-surface-200 text-surface-900 text-sm placeholder-surface-400 focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/20 transition-all duration-200';
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-50 p-4 relative overflow-hidden font-sans">
-      {/* Subtle background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-200/50 rounded-full blur-[100px] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-surface-950 p-4 relative overflow-hidden font-sans">
+      {/* Subtle background glow - animated */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-900/40 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" />
 
-      <div className="w-full max-w-[420px] relative z-10">
+      <div className="w-full max-w-[420px] relative z-10 animate-fade-in">
         {/* Simple Brand/Icon Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-surface-200 shadow-sm mb-5 relative group cursor-pointer">
-            <UserPlus className="w-7 h-7 text-primary-600 group-hover:scale-110 transition-transform duration-300" />
+        <div className="text-center mb-8 animate-slide-up">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-surface-900 border border-surface-800 shadow-lg mb-5 relative group cursor-pointer hover:border-primary-500/50 transition-colors">
+            <UserPlus className="w-7 h-7 text-primary-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="absolute inset-0 bg-primary-500/20 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           </div>
-          <h1 className="text-3xl font-extrabold text-surface-900 tracking-tight">Create an account</h1>
-          <p className="text-sm text-surface-500 mt-2 font-medium">Join us to manage your tasks efficiently</p>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">Create an account</h1>
+          <p className="text-sm text-surface-400 mt-2 font-medium">Join us to manage your tasks efficiently</p>
         </div>
 
         {/* Minimalist Card */}
-        <div className="bg-white border border-surface-100 rounded-[1.5rem] p-8 md:p-10 shadow-xl shadow-surface-200/50 ring-1 ring-black/5">
+        <div className="bg-surface-900/60 backdrop-blur-xl border border-surface-800/60 rounded-[1.5rem] p-8 md:p-10 shadow-2xl shadow-black/40 animate-slide-up delay-100">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-surface-700 mb-2 ml-1">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="Enter your name"
-                  value={form.name}
-                  onChange={handleChange}
-                  className={inputClass}
-                  required
-                  minLength={2}
-                />
-              </div>
-            </div>
+            <FormInput
+              label="Full Name"
+              id="name"
+              name="name"
+              type="text"
+              theme="dark"
+              placeholder="Enter your name"
+              value={form.name}
+              onChange={handleChange}
+              required
+              minLength={2}
+            />
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-surface-700 mb-2 ml-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={form.email}
-                  onChange={handleChange}
-                  className={inputClass}
-                  required
-                />
-              </div>
-            </div>
+            <FormInput
+              label="Email Address"
+              id="email"
+              name="email"
+              type="email"
+              theme="dark"
+              placeholder="Enter your email"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-surface-700 mb-2 ml-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Min 8 chars, upper+lower+number"
-                  value={form.password}
-                  onChange={handleChange}
-                  className={inputClass}
-                  required
-                  minLength={8}
-                />
-              </div>
-            </div>
+            <FormInput
+              label="Password"
+              id="password"
+              name="password"
+              type="password"
+              theme="dark"
+              placeholder="Min 8 chars, upper+lower+number"
+              value={form.password}
+              onChange={handleChange}
+              required
+              minLength={8}
+            />
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-600/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 mt-6"
+              isLoading={loading}
+              className="w-full mt-6 shadow-primary-900/50"
+              size="lg"
             >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                'Create Account'
-              )}
-            </button>
+              Create Account
+            </Button>
           </form>
         </div>
 
-        <p className="mt-8 text-center text-sm text-surface-500 font-medium">
+        <p className="mt-8 text-center text-sm text-surface-400 font-medium animate-slide-up delay-200">
           Already have an account?{' '}
-          <Link to="/login" className="text-primary-600 hover:text-primary-700 font-bold hover:underline underline-offset-4 transition-colors">
+          <Link to="/login" className="text-primary-400 hover:text-primary-300 font-bold hover:underline underline-offset-4 transition-colors">
             Sign in here
           </Link>
         </p>

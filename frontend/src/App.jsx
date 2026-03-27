@@ -2,26 +2,42 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Navbar from './components/Navbar';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import TaskManagement from './pages/TaskManagement';
+
+// Layout wrapper for Navbar
+function AppLayout({ children }) {
+  return (
+    <div className="min-h-screen bg-surface-50 flex flex-col">
+      <Navbar />
+      <div className="flex-1">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public */}
+          {/* Public Routes without Navbar? Actually Home needs Navbar */}
+          <Route path="/" element={<AppLayout><Home /></AppLayout>} />
+          
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/tasks" element={<ProtectedRoute><TaskManagement /></ProtectedRoute>} />
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+          <Route path="/tasks" element={<ProtectedRoute><AppLayout><TaskManagement /></AppLayout></ProtectedRoute>} />
 
           {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
         <Toaster
