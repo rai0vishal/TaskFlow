@@ -33,6 +33,11 @@ const createTaskSchema = z.object({
     .datetime({ message: 'Due date must be a valid ISO 8601 date' })
     .optional()
     .nullable(),
+
+  workspace: z.string().optional().nullable(),
+  board: z.string().optional().nullable(),
+  list: z.string().optional().nullable(),
+  order: z.number().optional().default(0),
 });
 
 const updateTaskSchema = z.object({
@@ -66,6 +71,11 @@ const updateTaskSchema = z.object({
     .datetime({ message: 'Due date must be a valid ISO 8601 date' })
     .optional()
     .nullable(),
+
+  workspace: z.string().optional().nullable(),
+  board: z.string().optional().nullable(),
+  list: z.string().optional().nullable(),
+  order: z.number().optional(),
 });
 
 module.exports = {

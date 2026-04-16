@@ -14,6 +14,19 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null }) {
     priority: task?.priority || 'medium',
     dueDate: task?.dueDate ? task.dueDate.slice(0, 10) : '',
   });
+
+  // Reset form when modal opens or selected task changes
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        title: task?.title || '',
+        description: task?.description || '',
+        status: task?.status || 'todo',
+        priority: task?.priority || 'medium',
+        dueDate: task?.dueDate ? task.dueDate.slice(0, 10) : '',
+      });
+    }
+  }, [isOpen, task]);
   const [loading, setLoading] = useState(false);
   const [activities, setActivities] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
@@ -59,8 +72,8 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null }) {
   if (!isOpen) return null;
 
   const inputClass =
-    'w-full px-4 py-3 rounded-xl bg-surface-50 border border-surface-200 text-surface-900 placeholder-surface-400 focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/20 transition-all duration-200 font-medium';
-  const labelClass = 'block text-sm font-semibold text-surface-700 mb-2 ml-1';
+    'w-full px-4 py-3 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-900 dark:text-white placeholder-surface-400 focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/20 transition-all duration-200 font-medium';
+  const labelClass = 'block text-sm font-semibold text-surface-700 dark:text-surface-300 mb-2 ml-1';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -68,23 +81,23 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null }) {
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white border border-surface-200 rounded-[1.5rem] shadow-2xl shadow-surface-500/20 animate-in fade-in zoom-in duration-200 overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-[1.5rem] shadow-2xl shadow-surface-500/20 dark:shadow-black/40 animate-in fade-in zoom-in duration-200 overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-surface-100 bg-surface-50/50">
-          <h2 className="text-xl font-extrabold text-surface-900 tracking-tight">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-surface-100 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-800/50">
+          <h2 className="text-xl font-extrabold text-surface-900 dark:text-white tracking-tight">
             {isEditing ? 'Edit Task' : 'Create New Task'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-surface-400 hover:text-surface-900 hover:bg-surface-200 transition-colors"
+            className="p-2 rounded-xl text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body Container with Scroll */}
-        <div className="flex-1 overflow-y-auto min-h-0 bg-white">
+        <div className="flex-1 overflow-y-auto min-h-0 bg-white dark:bg-surface-900">
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div>
             <label htmlFor="title" className={labelClass}>Title *</label>
@@ -144,11 +157,11 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null }) {
           </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-surface-100 mt-4">
+            <div className="flex justify-end gap-3 pt-6 border-t border-surface-100 dark:border-surface-800 mt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors"
+                className="px-5 py-2.5 rounded-xl text-sm font-bold text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
               >
                 Cancel
               </button>

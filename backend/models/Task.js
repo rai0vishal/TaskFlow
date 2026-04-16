@@ -20,10 +20,20 @@ const taskSchema = new mongoose.Schema(
       enum: ['todo', 'in-progress', 'in-review', 'done'],
       default: 'todo',
     },
-    priority: {
+    complexity: {
       type: String,
-      enum: ['low', 'medium', 'high', 'critical'],
-      default: 'medium',
+      enum: ['Easy', 'Medium', 'Hard'],
+      default: 'Medium',
+    },
+    priorityScore: {
+      type: Number,
+      default: 0,
+      index: -1, // Critical for fast descending sorts
+    },
+    priorityLabel: {
+      type: String,
+      enum: ['Low', 'Medium', 'High', 'Critical'],
+      default: 'Low',
     },
     dueDate: {
       type: Date,
@@ -34,6 +44,22 @@ const taskSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Task must belong to a user'],
       index: true,
+    },
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Workspace',
+    },
+    board: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Board',
+    },
+    list: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'List',
+    },
+    order: {
+      type: Number,
+      default: 0, // Used for drag-and-drop ordering within lists
     },
   },
   {

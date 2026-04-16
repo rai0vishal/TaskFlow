@@ -9,12 +9,20 @@ const ApiError = require('../utils/ApiError');
  * @param {object} user - Mongoose user document
  * @returns {string} JWT token
  */
-const generateToken = (user) => {
-  return jwt.sign(
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
   );
+
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    config.jwt.refreshSecret,
+    { expiresIn: config.jwt.refreshExpiresIn }
+  );
+
+  return { accessToken, refreshToken };
 };
 
 /**
@@ -33,10 +41,13 @@ const register = async ({ name, email, password }) => {
   // Create user (password is hashed via pre-save hook)
   const user = await User.create({ name, email, password });
 
-  // Generate JWT
-  const token = generateToken(user);
+  // Generate JWTs
+  const tokens = generateTokens(user);
+  
+  user.refreshToken = tokens.refreshToken;
+  await user.save();
 
-  return { user, token };
+  return { user, ...tokens };
 };
 
 /**
@@ -58,14 +69,47 @@ const login = async ({ email, password }) => {
     throw ApiError.unauthorized('Invalid email or password');
   }
 
-  // Generate JWT
-  const token = generateToken(user);
+  // Generate JWTs
+  const tokens = generateTokens(user);
 
-  return { user, token };
+  user.refreshToken = tokens.refreshToken;
+  await user.save();
+
+  return { user, ...tokens };
+};
+
+/**
+ * Refresh the access token using a refresh token.
+ *
+ * @param {string} token - The refresh token
+ * @returns {{ accessToken: string, refreshToken: string }}
+ */
+const refreshToken = async (token) => {
+  if (!token) {
+    throw ApiError.unauthorized('Refresh token is required');
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.jwt.refreshSecret);
+    const user = await User.findOne({ _id: decoded.id, refreshToken: token });
+
+    if (!user) {
+      throw ApiError.unauthorized('Invalid refresh token');
+    }
+
+    const tokens = generateTokens(user);
+    user.refreshToken = tokens.refreshToken;
+    await user.save();
+
+    return tokens;
+  } catch (error) {
+    throw ApiError.unauthorized('Invalid or expired refresh token');
+  }
 };
 
 module.exports = {
   register,
   login,
-  generateToken,
+  generateTokens,
+  refreshToken,
 };

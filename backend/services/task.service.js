@@ -1,12 +1,40 @@
 const Task = require('../models/Task');
 const TaskActivity = require('../models/TaskActivity');
 const ApiError = require('../utils/ApiError');
+const socketModule = require('../socket');
+const calculatePriority = require('../utils/priorityCalculator');
 
-/**
- * Create a new task.
- */
+const emitTaskEvent = (event, task) => {
+  try {
+    const io = socketModule.getIO();
+    if (task.board) {
+      io.to(`board_${task.board}`).emit(event, task);
+    }
+    io.to(`user_${task.createdBy}`).emit(event, task);
+  } catch (error) {
+    // Silently continue if socket isn't ready
+  }
+};
+
 const createTask = async (data, userId) => {
-  const task = await Task.create({ ...data, createdBy: userId });
+  // Determine user's current workload for smart priority
+  const activeTasksCount = await Task.countDocuments({
+    createdBy: userId,
+    status: { $in: ['todo', 'in-progress'] }
+  });
+
+  const { priorityScore, priorityLabel } = calculatePriority({
+    dueDate: data.dueDate,
+    complexity: data.complexity || 'Medium',
+    activeTasksCount
+  });
+
+  const task = await Task.create({
+    ...data,
+    priorityScore,
+    priorityLabel,
+    createdBy: userId
+  });
 
   await TaskActivity.create({
     task: task._id,
@@ -15,6 +43,7 @@ const createTask = async (data, userId) => {
     details: { message: 'Task created' },
   });
 
+  emitTaskEvent('taskCreated', task);
   return task;
 };
 
@@ -49,7 +78,7 @@ const getTasks = async (query, user) => {
 
   const [tasks, total] = await Promise.all([
     Task.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ priorityScore: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate('createdBy', 'name email'),
@@ -104,12 +133,35 @@ const updateTask = async (taskId, data, user) => {
 
   // Keep a record of changes
   const changes = {};
-  const updatableFields = ['title', 'description', 'status', 'priority', 'dueDate'];
+  const updatableFields = ['title', 'description', 'status', 'complexity', 'dueDate'];
+  let priorityChanged = false;
+
   updatableFields.forEach((field) => {
     if (data[field] !== undefined && data[field] !== task[field]?.toString()) {
       changes[field] = { old: task[field], new: data[field] };
     }
   });
+
+  // Automatically recalculate priority if metrics change
+  if (changes.dueDate || changes.complexity || changes.status) {
+    const activeTasksCount = await Task.countDocuments({
+      createdBy: task.createdBy,
+      status: { $in: ['todo', 'in-progress'] }
+    });
+
+    const { priorityScore, priorityLabel } = calculatePriority({
+      dueDate: data.dueDate !== undefined ? data.dueDate : task.dueDate,
+      complexity: data.complexity !== undefined ? data.complexity : task.complexity,
+      activeTasksCount
+    });
+
+    if (task.priorityScore !== priorityScore || task.priorityLabel !== priorityLabel) {
+      changes.priorityLabel = { old: task.priorityLabel, new: priorityLabel };
+      data.priorityScore = priorityScore;
+      data.priorityLabel = priorityLabel;
+      priorityChanged = true;
+    }
+  }
 
   Object.assign(task, data);
   await task.save();
@@ -123,7 +175,16 @@ const updateTask = async (taskId, data, user) => {
     });
   }
 
-  return task.populate('createdBy', 'name email');
+  const populatedTask = await task.populate('createdBy', 'name email');
+  
+  // Custom event for drag and drop moves if status changed
+  if (changes.status && !priorityChanged) {
+    emitTaskEvent('taskMoved', populatedTask);
+  } else {
+    emitTaskEvent('taskUpdated', populatedTask);
+  }
+
+  return populatedTask;
 };
 
 /**
@@ -151,6 +212,7 @@ const deleteTask = async (taskId, user) => {
   });
 
   await task.deleteOne();
+  emitTaskEvent('taskDeleted', task);
 };
 
 /**
