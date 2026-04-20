@@ -38,13 +38,13 @@
 | Category | Features |
 |---|---|
 | **Real-Time Engine** | Socket.IO bi-directional communication ensures instant UI state syncs across client instances |
+| **Messaging & Chat** | Real-time 1-to-1 conversations with online presence indicators and persistent message history |
 | **Task Board Architecture** | High-performance drag-and-drop functionality built on `@dnd-kit/core` |
 | **Analytics Dashboard** | Live telemetry, completion velocity graphs via `recharts`, and comprehensive audit timelines |
-| **Authentication** | Hardened JWT flows with bcrypt permutation mapping and isolated user constraints |
-| **API Design** | RESTful endpoints with strict API versioning (`/api/v1/`), pagination, and deterministic status filtering |
-| **Validation Layer** | Comprehensive payload sanitization utilizing Zod schemas across every incoming vector |
-| **Error Handling** | Global exception interception mapping Mongoose, JWT, Zod, and CORS errors gracefully |
-| **Security Mesh** | Helmet CSP, rigid CORS matrices, rate limiting, NoSQL obfuscation, and rapid XSS sanitization |
+| **Authentication** | Hardened JWT flows with refresh token rotation and isolated user constraints |
+| **Validation Layer** | Rigid deterministic payload validation utilizing Zod schemas across core modules |
+| **Security Mesh** | Helmet CSP, rigid CORS matrices, rate limiting, and NoSQL injection protection |
+
 
 ---
 
@@ -89,25 +89,66 @@
 2. The UI intercepts local interaction vectors, initiating zero-latency Optimistic Updates.
 3. Axios commits mutations through Zod validation boundaries into the Express controllers.
 4. Mongoose ODM handles database transactional consistency.
-5. Socket.io emitters simultaneously broadcast the state change to connected peer clusters.
+5. Socket.io emitters simultaneously broadcast state changes and messaging data to connected peer clusters.
+
 
 ---
 
-## 📡 Core Endpoints
+## 📡 API Reference
+
+The TaskFlow API is versioned (`/api/v1`) and documented via Swagger. Below is a comprehensive list of all **23 endpoints**.
+
+### System & Docs
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | System health and environment check |
+| `GET` | `/api-docs` | Interactive Swagger UI |
+| `GET` | `/api-docs.json` | Raw OpenAPI specification |
 
 ### Authentication
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/auth/register` | Identity bootstrapping |
-| `POST` | `/api/v1/auth/login` | Session token generation |
+| `POST` | `/api/v1/auth/register` | Create a new user account |
+| `POST` | `/api/v1/auth/login` | Authenticate and receive access/refresh tokens |
+| `POST` | `/api/v1/auth/refresh-token` | Rotate tokens using a valid refresh token |
 
 ### Tasks
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/tasks` | Initialize new task object |
-| `GET` | `/api/v1/tasks` | Pull filtered/paginated task lists |
-| `PUT` | `/api/v1/tasks/:id` | Execute task state mutation |
-| `DELETE` | `/api/v1/tasks/:id` | Purge task entity |
+| `POST` | `/api/v1/tasks` | Initialize a new task |
+| `GET` | `/api/v1/tasks` | Retrieve paginated/filtered task list |
+| `GET` | `/api/v1/tasks/:id` | Fetch full details for a single task |
+| `PUT` | `/api/v1/tasks/:id` | Update task fields (status, priority, etc.) |
+| `DELETE` | `/api/v1/tasks/:id` | Permanent task deletion |
+| `GET` | `/api/v1/tasks/:id/activity` | Retrieve task-specific audit log |
+
+### Workspaces & Boards
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/workspaces` | Create a new project workspace |
+| `GET` | `/api/v1/workspaces` | List all accessible workspaces |
+| `POST` | `/api/v1/boards` | Create a board within a workspace |
+| `GET` | `/api/v1/boards/:workspaceId` | Fetch boards for a specific workspace |
+
+### Lists & Columns
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/lists` | Create a new task list/column |
+| `GET` | `/api/v1/lists/:boardId` | Fetch lists for a specific board |
+
+### Analytics & Reporting
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/analytics/dashboard` | Aggregated velocity and productivity metrics |
+
+### Chat & Collaboration
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/chat/users/search` | Dynamic user lookup for messaging |
+| `GET` | `/api/v1/chat/conversations` | List user's active chat conversations |
+| `POST` | `/api/v1/chat/conversations` | Access or create a conversation |
+| `GET` | `/api/v1/chat/messages/:conversationId` | Retrieve message history |
+
 
 ---
 
@@ -162,8 +203,10 @@ npm run dev
 - [ ] Implement task assignment to other users
 - [ ] Add project grouping for tasks
 - [ ] Email notifications for task deadlines
-- [ ] Implement refresh token rotation for enhanced security
-- [ ] Add WebSocket support for real-time task updates
+- [x] Implement refresh token rotation for enhanced security
+- [x] Add WebSocket support for real-time task updates
+- [x] Implement Chat & Collaborative messaging
+- [x] Advanced Analytics Dashboard
 - [ ] CI/CD pipeline with GitHub Actions
 
 ---
