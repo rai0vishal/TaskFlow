@@ -23,7 +23,7 @@ export default function Home() {
       <div className="relative z-10">
 
         {/* HERO */}
-        <section className="px-6 pt-40 pb-32 flex flex-col items-center text-center min-h-[85vh] justify-center">
+        <section className="px-6 pt-32 pb-32 flex flex-col items-center text-center min-h-[85vh] justify-center">
 
           <div className="max-w-3xl w-full">
 
@@ -41,7 +41,7 @@ export default function Home() {
             </p>
 
             {/* CTA */}
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8">
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-5">
 
               <Link to="/register">
                 <Button className="px-10 py-4 text-lg font-semibold rounded-xl bg-indigo-500 shadow-lg shadow-indigo-500/30 transition-all duration-300 hover:scale-105 hover:bg-indigo-600 active:scale-95">
@@ -89,10 +89,25 @@ export default function Home() {
               ].map((item, i) => (
                 <div
                   key={i}
-                  className="group bg-white/5 border border-white/10 rounded-2xl p-8 min-h-[240px] flex flex-col justify-between hover:scale-[1.04] hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300"
+                  className="
+                  group relative
+                  rounded-2xl p-8 min-h-[240px]
+                  flex flex-col justify-between
+                  bg-gradient-to-b from-white/[0.06] to-white/[0.02]
+                  border border-white/10
+                  backdrop-blur-md
+                  shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]
+                  transition-all duration-300
+                  hover:scale-[1.03]
+                  hover:shadow-[0_20px_50px_-10px_rgba(99,102,241,0.25)]
+                  "
                 >
+
+                  {/* HOVER GLOW */}
+                  <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300 bg-gradient-to-br from-indigo-500/10 via-transparent to-purple-500/10 pointer-events-none"></div>
+
                   <div>
-                    <div className="w-12 h-12 bg-indigo-500/20 rounded-lg flex items-center justify-center mb-6 group-hover:bg-indigo-500/30 transition">
+                    <div className="w-12 h-12 bg-indigo-500/20 group-hover:bg-indigo-500/30 rounded-lg flex items-center justify-center mb-6 transition">
                       {item.icon}
                     </div>
 
@@ -111,13 +126,9 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 🔥 CTA FOOTER WITH GRADIENT BORDER */}
-        <section className="px-6 pb-24 flex justify-center">
-
-          {/* Gradient Border Wrapper */}
+        {/* CTA */}
+        <section className="px-6 pb-32 flex justify-center">
           <div className="p-[1px] rounded-2xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 max-w-5xl w-full">
-
-            {/* Inner Card */}
             <div className="bg-[#0B0F19] rounded-2xl p-10 text-center backdrop-blur">
 
               <h2 className="text-3xl font-semibold mb-4">
@@ -132,38 +143,24 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
 
                 <Link to="/register">
-                  <button className="
-                    px-10 py-4 text-lg font-semibold rounded-xl
-                    bg-indigo-500
-                    shadow-lg shadow-indigo-500/30
-                    transition-all duration-300
-                    hover:scale-105 hover:bg-indigo-600 hover:shadow-indigo-500/50
-                    active:scale-95
-                  ">
+                  <button className="px-10 py-4 text-lg font-semibold rounded-xl bg-indigo-500 shadow-lg shadow-indigo-500/30 transition-all duration-300 hover:scale-105 hover:bg-indigo-600 active:scale-95">
                     Create Free Account →
                   </button>
                 </Link>
 
                 <Link to="/login">
-                  <button className="
-                    px-10 py-4 text-lg font-semibold rounded-xl
-                    border border-white/10 text-gray-300
-                    transition-all duration-300
-                    hover:scale-105 hover:text-white hover:border-white/40 hover:bg-white/5
-                    active:scale-95
-                  ">
+                  <button className="px-10 py-4 text-lg font-semibold rounded-xl border border-white/10 text-gray-300 transition-all duration-300 hover:scale-105 hover:text-white hover:border-white/40 hover:bg-white/5 active:scale-95">
                     Log In
                   </button>
                 </Link>
 
               </div>
-
             </div>
           </div>
         </section>
 
-        {/* MINI FOOTER */}
-        <footer className="text-center text-gray-500 text-sm pb-10">
+        {/* FOOTER */}
+        <footer className="mt-16 pt-10 border-t border-white/10 text-center text-gray-500 text-sm pb-10">
           © {new Date().getFullYear()} TaskFlow. Built with React, Node.js & MongoDB.
         </footer>
 
