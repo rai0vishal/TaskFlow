@@ -9,12 +9,15 @@ router.use(authenticate);
 
 /**
  * POST   /api/v1/tasks       — Create a new task
- * GET    /api/v1/tasks       — List tasks (paginated, filterable by status)
+ * GET    /api/v1/tasks/:workspaceId — List tasks (paginated, filterable by status)
  */
 router
   .route('/')
   .post(validate(createTaskSchema), taskController.createTask)
-  .get(taskController.getTasks);
+
+router.get('/workspace/:workspaceId', taskController.getTasks);
+
+router.patch('/assign', taskController.assignTask);
 
 /**
  * GET    /api/v1/tasks/:id   — Get task by ID

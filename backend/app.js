@@ -15,10 +15,7 @@ const logger = require('./utils/logger');
 
 const app = express();
 
-// ============================
-// Security Headers — Helmet
-// ============================
-// Build allowed origins for CSP connect-src
+// Security Headers (Helmet) - Protects against common web vulnerabilities like XSS, Clickjacking, etc.
 const allowedOrigins = config.corsOrigin.split(',').map((o) => o.trim());
 
 app.use(
@@ -48,61 +45,38 @@ app.use(
   })
 );
 
-// ============================
-// CORS — fine-grained control
-// ============================
+// CORS configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman, etc.)
     if (!origin) return callback(null, true);
-
-    // Allow if origin is in the configured allowed list
     if (allowedOrigins.includes(origin)) return callback(null, true);
-
-    // Allow same-origin requests (e.g. Swagger UI hosted on the same server)
-    // This handles cases where the server URL isn't explicitly in CORS_ORIGIN
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
-  maxAge: 600, // Preflight cache: 10 minutes
+  maxAge: 600,
 };
 app.use(cors(corsOptions));
 
-// ============================
-// Rate Limiting (global)
-// ============================
+// Rate Limiting
 app.use('/api', apiLimiter);
 
-// ============================
 // Body Parsing
-// ============================
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ============================
 // Input Sanitization
-// ============================
-// Prevent NoSQL injection by stripping $ and . from req.body / query / params
 app.use(mongoSanitize({ replaceWith: '_' }));
-
-// Prevent XSS by escaping HTML entities in user input
 app.use(xssSanitizer);
-
-// Prevent HTTP Parameter Pollution (duplicate query params)
 app.use(hpp());
 
-// ============================
-// HTTP Request Logging (Morgan → Winston)
-// ============================
-// Custom Morgan token for client IP
+// HTTP Request Logging using Morgan and Winston
 morgan.token('client-ip', (req) => req.ip || req.connection.remoteAddress);
 
 const morganStream = {
   write: (message) => {
-    // Parse the structured Morgan output into Winston metadata
     const parts = message.trim().split(' | ');
     if (parts.length === 5) {
       logger.http('incoming request', {
@@ -122,7 +96,7 @@ app.use(
   morgan(':method | :url | :status | :response-time ms | :client-ip', {
     stream: morganStream,
     skip: (req) => {
-      // In production, skip health-check spam
+      // Skip logging for health check endpoint in production to reduce noise
       if (process.env.NODE_ENV === 'production' && req.originalUrl === '/api/health') {
         return true;
       }
@@ -131,9 +105,7 @@ app.use(
   })
 );
 
-// ============================
 // API Documentation (Swagger)
-// ============================
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,
   customSiteTitle: 'Project Management API Docs',
@@ -143,9 +115,7 @@ app.get('/api-docs.json', (req, res) => {
   res.send(swaggerSpec);
 });
 
-// ============================
 // Health Check
-// ============================
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -155,20 +125,18 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ============================
 // API Routes
-// ============================
 app.use('/api/v1/auth', authLimiter, require('./routes/auth.routes'));
 app.use('/api/v1/workspaces', require('./routes/workspace.routes'));
 app.use('/api/v1/boards', require('./routes/board.routes'));
 app.use('/api/v1/lists', require('./routes/list.routes'));
 app.use('/api/v1/tasks', require('./routes/task.routes'));
 app.use('/api/v1/analytics', require('./routes/analytics.routes'));
+app.use('/api/v1/profile', require('./routes/profile.routes'));
 app.use('/api/v1/chat', require('./routes/chat.routes'));
+app.use('/api/v1/invites', require('./routes/invite.routes'));
 
-// ============================
 // Error Handling
-// ============================
 app.use(notFoundHandler);
 app.use(errorHandler);
 

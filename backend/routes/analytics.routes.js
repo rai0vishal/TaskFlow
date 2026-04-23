@@ -5,5 +5,6 @@ const { authenticate } = require('../middleware/auth');
 router.use(authenticate);
 
 router.get('/dashboard', analyticsController.getDashboardData);
+router.get('/user/:userId', analyticsController.getUserAnalytics);
 
 module.exports = router;

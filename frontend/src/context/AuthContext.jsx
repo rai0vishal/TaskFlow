@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Clear in-memory state and persisted localStorage items
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');

@@ -5,36 +5,30 @@ export default function Button({
   children,
   type = 'button',
   variant = 'primary',
-  size = 'md',
+  size = 'md', // Not specified in prompt but usually needed, will map to the exact spec padding
   className = '',
   isLoading = false,
   disabled = false,
   ...props
 }) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseStyles = 'inline-flex items-center justify-center transition-all duration-150 focus:outline-none';
   
+  // As per Section 11 specs
   const variants = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-sm hover:shadow active:scale-95',
-    secondary: 'bg-surface-100 text-surface-900 hover:bg-surface-200 focus:ring-surface-500',
-    outline: 'border-2 border-surface-200 text-surface-700 hover:bg-surface-50 hover:text-surface-900 focus:ring-surface-500',
-    ghost: 'text-surface-600 hover:text-surface-900 hover:bg-surface-100 focus:ring-surface-500',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm hover:shadow active:scale-95'
-  };
-
-  const sizes = {
-    sm: 'text-sm px-3 py-1.5 rounded-lg',
-    md: 'text-base px-5 py-2.5 rounded-xl',
-    lg: 'text-lg px-6 py-3 rounded-xl'
+    primary: 'bg-primary text-white border-none font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] hover:bg-primary-dark active:scale-[0.98]',
+    secondary: 'bg-transparent text-primary border-[1.5px] border-primary font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] hover:bg-primary-light active:scale-[0.98]',
+    ghost: 'bg-bg-surface text-text-muted border-[0.5px] border-border font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] hover:bg-border-light active:scale-[0.98]',
+    // Danger isn't in spec 11, but might be used. Fallback to similar styles:
+    danger: 'bg-danger text-white border-none font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] hover:opacity-90 active:scale-[0.98]'
   };
 
   const variantStyles = variants[variant] || variants.primary;
-  const sizeStyles = sizes[size] || sizes.md;
-  const disabledStyles = disabled || isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : '';
+  const disabledStyles = disabled || isLoading ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer';
 
   return (
     <button
       type={type}
-      className={`${baseStyles} ${variantStyles} ${sizeStyles} ${disabledStyles} ${className}`}
+      className={`${baseStyles} ${variantStyles} ${disabledStyles} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >

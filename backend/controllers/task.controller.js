@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const sendResponse = require('../utils/sendResponse');
-const taskService = require('../services/task.service');
+const taskService =  require('../services/task.service');
 
 /**
  * @route   POST /api/v1/tasks
@@ -13,12 +13,12 @@ const createTask = asyncHandler(async (req, res) => {
 });
 
 /**
- * @route   GET /api/v1/tasks
- * @desc    Get all tasks (paginated, filterable)
+ * @route   GET /api/v1/tasks/workspace/:workspaceId
+ * @desc    Get all tasks for a specific workspace (paginated, filterable)
  * @access  Private
  */
 const getTasks = asyncHandler(async (req, res) => {
-  const result = await taskService.getTasks(req.query, req.user);
+  const result = await taskService.getTasks(req.params.workspaceId, req.query, req.user);
   sendResponse(res, 200, 'Tasks retrieved successfully', result);
 });
 
@@ -62,6 +62,22 @@ const getTaskActivity = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Task activity retrieved successfully', { activities });
 });
 
+/**
+ * @route   POST /api/v1/tasks/assign
+ * @desc    Assign a task to a user. Only workspace members can be assigned.
+ * @access  Private
+ */
+const assignTask = asyncHandler(async (req, res) => {
+  const { taskId, assignedTo } = req.body;
+  const task = await taskService.assignTask(taskId, assignedTo, req.user);
+  
+  // Notify other clients about the task assignment in real-time via Socket.io
+  const { getIO } = require('../socket');
+  getIO().emit('task_assigned', { taskId, assignedTo: task.assignedTo });
+  
+  sendResponse(res, 200, 'Task assigned successfully', { task });
+});
+
 module.exports = {
   createTask,
   getTasks,
@@ -69,4 +85,5 @@ module.exports = {
   updateTask,
   deleteTask,
   getTaskActivity,
+  assignTask,
 };

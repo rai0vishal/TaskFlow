@@ -1,6 +1,5 @@
 import api from './axios';
 
-export const searchUsers = (searchParams) => api.get(`/chat/users/search?search=${searchParams}`);
-export const getConversations = () => api.get('/chat/conversations');
-export const accessConversation = (userId) => api.post('/chat/conversations', { userId });
-export const getMessages = (conversationId) => api.get(`/chat/messages/${conversationId}`);
+export const sendWorkspaceMessage = (data) => api.post('/chat/send', data);
+export const getWorkspaceMessages = (workspaceId, params) => api.get(`/chat/${workspaceId}`, { params });
+export const markMessageSeen = (messageId) => api.patch('/chat/seen', { messageId });

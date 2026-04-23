@@ -45,9 +45,14 @@ const taskSchema = new mongoose.Schema(
       required: [true, 'Task must belong to a user'],
       index: true,
     },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Workspace',
+      required: [true, 'Task must belong to a workspace (personal or team)'],
     },
     board: {
       type: mongoose.Schema.Types.ObjectId,
@@ -73,8 +78,12 @@ const taskSchema = new mongoose.Schema(
   }
 );
 
-// Compound index for common queries: user's tasks filtered by status
-taskSchema.index({ createdBy: 1, status: 1 });
+// ── Compound Indexes (workspace-first for all multi-tenant queries) ──
+// Primary compound indexes covering all workspace-scoped query patterns
+taskSchema.index({ workspace: 1, status: 1 });
+taskSchema.index({ workspace: 1, createdBy: 1 });
+taskSchema.index({ workspace: 1, assignedTo: 1, status: 1, updatedAt: -1 });
+taskSchema.index({ workspace: 1, updatedAt: -1 }); // For productivity trend aggregations
 
 const Task = mongoose.model('Task', taskSchema);
 

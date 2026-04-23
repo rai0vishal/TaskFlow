@@ -1,12 +1,13 @@
 const router = require('express').Router();
 const chatController = require('../controllers/chat.controller');
 const { authenticate } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { sendMessageSchema, markAsSeenSchema } = require('../validations/chat.validation');
 
 router.use(authenticate);
 
-router.get('/users/search', chatController.searchUsers);
-router.get('/conversations', chatController.getConversations);
-router.post('/conversations', chatController.accessConversation);
-router.get('/messages/:conversationId', chatController.getMessages);
+router.post('/send', validate(sendMessageSchema), chatController.sendMessage);
+router.get('/:workspaceId', chatController.getMessages);
+router.patch('/seen', validate(markAsSeenSchema), chatController.markAsSeen);
 
 module.exports = router;

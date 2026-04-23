@@ -11,22 +11,18 @@ const errorHandler = (err, req, res, _next) => {
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || [];
 
-  // ----- Mongoose Errors -----
-
-  // Bad ObjectId cast
+  // Mongoose Errors
   if (err.name === 'CastError') {
     statusCode = 400;
     message = `Invalid ${err.path}: ${err.value}`;
   }
 
-  // Duplicate key (unique constraint)
   if (err.code === 11000) {
     statusCode = 409;
     const field = Object.keys(err.keyValue).join(', ');
     message = `Duplicate value for field: ${field}`;
   }
 
-  // Schema validation
   if (err.name === 'ValidationError' && err.errors) {
     statusCode = 400;
     message = 'Validation Error';
@@ -36,8 +32,7 @@ const errorHandler = (err, req, res, _next) => {
     }));
   }
 
-  // ----- JWT Errors -----
-
+  // JWT Errors
   if (err.name === 'JsonWebTokenError') {
     statusCode = 401;
     message = 'Invalid token. Please log in again.';
@@ -48,8 +43,7 @@ const errorHandler = (err, req, res, _next) => {
     message = 'Your session has expired. Please log in again.';
   }
 
-  // ----- Zod Validation Errors -----
-
+  // Zod Validation Errors
   if (err.name === 'ZodError') {
     statusCode = 400;
     message = 'Validation Error';
@@ -59,29 +53,25 @@ const errorHandler = (err, req, res, _next) => {
     }));
   }
 
-  // ----- CORS Error -----
-
+  // CORS Error
   if (err.message === 'Not allowed by CORS') {
     statusCode = 403;
     message = 'Cross-origin request blocked';
   }
 
-  // ----- Payload Too Large -----
-
+  // Payload Too Large
   if (err.type === 'entity.too.large') {
     statusCode = 413;
     message = 'Request payload too large';
   }
 
-  // ----- Malformed JSON -----
-
+  // Malformed JSON (Parser Error)
   if (err.type === 'entity.parse.failed') {
     statusCode = 400;
     message = 'Malformed JSON in request body';
   }
 
-  // ----- Logging -----
-
+  // Structured Logging for error tracking - includes stack trace for internal errors (500+)
   const logMeta = {
     method: req.method,
     url: req.originalUrl,
@@ -95,8 +85,7 @@ const errorHandler = (err, req, res, _next) => {
     logger.warn(`${statusCode} - ${message}`, logMeta);
   }
 
-  // ----- Response -----
-
+  // Response Construction - ensuring consistent error format
   const response = {
     success: false,
     message,
@@ -106,7 +95,7 @@ const errorHandler = (err, req, res, _next) => {
     response.errors = errors;
   }
 
-  // Include stack trace only in development
+  // Include stack trace only in development to aid debugging without leaking details in production
   if (process.env.NODE_ENV === 'development' && err.stack) {
     response.stack = err.stack;
   }

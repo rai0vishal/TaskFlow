@@ -9,9 +9,7 @@ const Task = require('./models/Task');
 const calculatePriority = require('./utils/priorityCalculator');
 
 const startServer = async () => {
-  // ============================
   // Startup Banner
-  // ============================
   logger.info('='.repeat(50));
   logger.info('  Project Management System — Backend');
   logger.info('='.repeat(50));
@@ -37,9 +35,7 @@ const startServer = async () => {
     logger.info('='.repeat(50));
   });
 
-  // ============================
   // Nightly Priority Escalation Cron
-  // ============================
   cron.schedule('0 0 * * *', async () => {
     logger.info('Running nightly priority recalculation job...');
     try {
@@ -76,9 +72,7 @@ const startServer = async () => {
     }
   });
 
-  // ============================
   // Graceful Shutdown
-  // ============================
   const shutdown = (signal) => {
     logger.warn(`${signal} received — starting graceful shutdown...`);
     server.close(() => {
@@ -96,9 +90,7 @@ const startServer = async () => {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  // ============================
   // Uncaught Error Safety Net
-  // ============================
   process.on('unhandledRejection', (err) => {
     logger.error('Unhandled Promise Rejection', {
       message: err.message,

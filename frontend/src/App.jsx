@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import toast, { Toaster, resolveValue } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -11,76 +12,52 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import TaskManagement from './pages/TaskManagement';
-import Profile from './pages/Profile';
-import ChatPanel from './components/ChatPanel';
+import WorkspaceSettingsModal from './components/WorkspaceSettingsModal';
+import CommandPalette from './components/CommandPalette';
+import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
-// Layout wrapper for Navbar
+// Lazy-load heavier pages for better initial bundle size
+const Profile = lazy(() => import('./pages/Profile'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+
+// Global loader for workspace switching
+function GlobalSwitchLoader() {
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-all duration-500 animate-in fade-in">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-primary-500/20 border-t-primary-600 rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary-600 rounded-lg shadow-lg shadow-primary-500/50 animate-pulse" />
+        </div>
+      </div>
+      <p className="mt-6 text-sm font-bold text-surface-900 dark:text-white tracking-widest uppercase animate-pulse">
+        Switching Workspace
+      </p>
+    </div>
+  );
+}
+
+// Suspense fallback spinner
+function PageLoader() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-primary-500/30 border-t-primary-600 rounded-full animate-spin" />
+    </div>
+  );
+}
+
 function AppLayout({ children }) {
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const { socket } = useSocket();
   const { user } = useAuth();
-
-  useEffect(() => {
-    if (!socket || !user) return;
-
-    const handleNewMessage = (msg) => {
-      // Don't toast if we sent it
-      if (msg.sender._id === user._id) return;
-      
-      if (!isChatOpen) {
-        setUnreadCount((prev) => prev + 1);
-        toast.custom((t) => (
-          <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-surface-800 shadow-lg rounded-2xl pointer-events-auto flex ring-1 ring-black/5 dark:ring-white/10`}>
-            <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-600">
-                    {msg.sender.name.charAt(0).toUpperCase()}
-                  </div>
-                </div>
-                <div className="ml-3 flex-1">
-                  <p className="text-sm font-bold text-surface-900">New Message from {msg.sender.name}</p>
-                  <p className="mt-1 text-sm text-surface-500 line-clamp-2">{msg.content}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex border-l border-surface-200">
-              <button
-                onClick={() => { toast.dismiss(t.id); setIsChatOpen(true); }}
-                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-bold text-primary-600 hover:text-primary-500 hover:bg-primary-50"
-              >
-                Reply
-              </button>
-            </div>
-          </div>
-        ));
-      }
-    };
-
-    socket.on('newMessage', handleNewMessage);
-    return () => socket.off('newMessage', handleNewMessage);
-  }, [socket, isChatOpen, user]);
+  const { isSwitching, isSettingsOpen, setIsSettingsOpen } = useWorkspace();
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 flex flex-col overflow-x-hidden transition-colors duration-300">
-      <Navbar 
-        onChatToggle={() => {
-          setIsChatOpen(!isChatOpen);
-          setUnreadCount(0);
-        }} 
-        unreadCount={unreadCount} 
-      />
-      <div className="flex-1">
+    <div className="min-h-screen bg-bg-page flex flex-col overflow-x-hidden transition-colors duration-300">
+      {isSwitching && <GlobalSwitchLoader />}
+      <Navbar />
+      <div className="flex-1 page-wrapper">
         {children}
       </div>
-      <ChatPanel 
-        isOpen={isChatOpen} 
-        onClose={() => {
-          setIsChatOpen(false);
-          setUnreadCount(0);
-        }} 
-      />
+      <WorkspaceSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 }
@@ -90,7 +67,8 @@ export default function App() {
     <AuthProvider>
     <ThemeProvider>
       <SocketProvider>
-        <BrowserRouter>
+        <WorkspaceProvider>
+          <BrowserRouter>
         <Routes>
           {/* Public Routes without Navbar? Actually Home needs Navbar */}
           <Route path="/" element={<AppLayout><Home /></AppLayout>} />
@@ -101,33 +79,44 @@ export default function App() {
           {/* Protected Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
           <Route path="/tasks" element={<ProtectedRoute><AppLayout><TaskManagement /></AppLayout></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><AppLayout><Suspense fallback={<PageLoader />}><Analytics /></Suspense></AppLayout></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><AppLayout><Suspense fallback={<PageLoader />}><Profile /></Suspense></AppLayout></ProtectedRoute>} />
 
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#ffffff',
-              color: '#0f172a',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              fontSize: '14px',
-              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-            },
-            success: {
-              iconTheme: { primary: '#22c55e', secondary: '#ffffff' },
-            },
-            error: {
-              iconTheme: { primary: '#ef4444', secondary: '#ffffff' },
-            },
+        <CommandPalette />
+        <Toaster position="top-right" toastOptions={{ duration: 3000 }}>
+          {(t) => {
+            const types = {
+              success: { border: 'border-l-success', icon: <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" /> },
+              error: { border: 'border-l-danger', icon: <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" /> },
+              loading: { border: 'border-l-info', icon: <Info className="w-5 h-5 text-info shrink-0 mt-0.5" /> },
+              blank: { border: 'border-l-info', icon: <Info className="w-5 h-5 text-info shrink-0 mt-0.5" /> },
+              custom: { border: 'border-l-info', icon: <Info className="w-5 h-5 text-info shrink-0 mt-0.5" /> },
+            };
+            const typeConfig = types[t.type] || types.blank;
+            
+            return (
+              <div
+                className={`w-[320px] bg-bg-card border-[0.5px] border-border border-l-[3px] ${typeConfig.border} rounded-[var(--radius-md)] p-[16px] shadow-[0_4px_12px_rgba(0,0,0,0.05)] flex items-start gap-3 pointer-events-auto`}
+                style={{
+                  animation: t.visible ? 'toastIn 280ms ease-out forwards' : 'toastOut 220ms ease-in forwards'
+                }}
+              >
+                {typeConfig.icon}
+                <div className="flex-1">
+                  <span className="text-[14px] font-[500] text-text-heading leading-tight block">
+                    {resolveValue(t.message, t)}
+                  </span>
+                </div>
+              </div>
+            );
           }}
-        />
-      </BrowserRouter>
+        </Toaster>
+        </BrowserRouter>
+        </WorkspaceProvider>
       </SocketProvider>
     </ThemeProvider>
     </AuthProvider>

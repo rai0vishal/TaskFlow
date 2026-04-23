@@ -1,32 +1,88 @@
-import { Calendar, Pencil, Trash2, AlertCircle, Clock, GripVertical, User as UserIcon, Hash } from 'lucide-react';
+import { memo } from 'react';
+import { Calendar, Pencil, Trash2, Clock, GripVertical, Plus } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import * as taskApi from '../api/tasks';
+import { customToast as toast } from './ToastSystem';
 
-/* ─── Priority Configuration (glassmorphism soft-glow badges) ─── */
-const PRIORITY_CONFIG = {
-  Low: {
-    badge: 'bg-green-200/50 dark:bg-emerald-900/30 text-green-700 dark:text-emerald-400',
-    border: 'border-l-emerald-400/70',
-    dot: 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]',
+const PRIORITY_COLORS = {
+  Low: 'border-l-success',
+  Medium: 'border-l-warning',
+  High: 'border-l-danger',
+  Critical: 'border-l-danger',
+};
+
+/* ── Priority badge styles (FIX 8a) ── */
+const PRIORITY_BADGE = {
+  high: {
+    background: 'var(--color-danger-bg)',
+    color: 'var(--color-danger)',
+    border: '0.5px solid var(--color-danger-border)',
   },
-  Medium: {
-    badge: 'bg-yellow-200/50 dark:bg-amber-900/30 text-yellow-700 dark:text-amber-400',
-    border: 'border-l-amber-400/70',
-    dot: 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]',
+  critical: {
+    background: 'var(--color-danger-bg)',
+    color: 'var(--color-danger)',
+    border: '0.5px solid var(--color-danger-border)',
   },
-  High: {
-    badge: 'bg-red-200/50 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    border: 'border-l-red-400/70',
-    dot: 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]',
+  medium: {
+    background: 'var(--color-warning-bg)',
+    color: 'var(--color-warning)',
+    border: '0.5px solid var(--color-warning-border)',
   },
-  Critical: {
-    badge: 'bg-red-300/50 dark:bg-red-900/40 text-red-800 dark:text-red-300 ring-1 ring-red-400/30',
-    border: 'border-l-red-500/80',
-    dot: 'bg-red-600 animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.5)]',
+  low: {
+    background: 'var(--color-success-bg)',
+    color: 'var(--color-success)',
+    border: '0.5px solid var(--color-success-border)',
   },
 };
 
-export default function TaskCard({ task, onEdit, onDelete }) {
+/* ── Avatar colour map by first letter (FIX 8b) ── */
+const AVATAR_COLORS = {
+  A: { bg: '#1E1B35', text: '#A89EF5' },
+  B: { bg: '#1E1B35', text: '#A89EF5' },
+  C: { bg: '#1E1B35', text: '#A89EF5' },
+  D: { bg: '#1E1B35', text: '#A89EF5' },
+  E: { bg: '#1E1B35', text: '#A89EF5' },
+  F: { bg: '#0D2B1A', text: '#4ADE80' },
+  G: { bg: '#0D2B1A', text: '#4ADE80' },
+  H: { bg: '#0D2B1A', text: '#4ADE80' },
+  I: { bg: '#0D2B1A', text: '#4ADE80' },
+  J: { bg: '#0D2B1A', text: '#4ADE80' },
+  K: { bg: '#0A1A2E', text: '#60A5FA' },
+  L: { bg: '#0A1A2E', text: '#60A5FA' },
+  M: { bg: '#0A1A2E', text: '#60A5FA' },
+  N: { bg: '#0A1A2E', text: '#60A5FA' },
+  O: { bg: '#0A1A2E', text: '#60A5FA' },
+  P: { bg: '#2A1F05', text: '#FBB024' },
+  Q: { bg: '#2A1F05', text: '#FBB024' },
+  R: { bg: '#2A1F05', text: '#FBB024' },
+  S: { bg: '#2A1F05', text: '#FBB024' },
+  T: { bg: '#2A1F05', text: '#FBB024' },
+  U: { bg: '#2A0A1A', text: '#F472B6' },
+  V: { bg: '#2A0A1A', text: '#F472B6' },
+  W: { bg: '#2A0A1A', text: '#F472B6' },
+  X: { bg: '#2A0A1A', text: '#F472B6' },
+  Y: { bg: '#2A0A1A', text: '#F472B6' },
+  Z: { bg: '#2A0A1A', text: '#F472B6' },
+};
+
+function getInitials(name) {
+  if (!name) return '?';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0]?.toUpperCase())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('');
+}
+
+function getAvatarColor(name) {
+  const letter = (name || '?').trim().charAt(0).toUpperCase();
+  return AVATAR_COLORS[letter] || { bg: '#1E1B35', text: '#A89EF5' };
+}
+
+const TaskCard = memo(({ task, onEdit, onDelete, onClick, onViewActivity, canDelete, workspaceMembers = [] }) => {
   const {
     attributes,
     listeners,
@@ -36,9 +92,11 @@ export default function TaskCard({ task, onEdit, onDelete }) {
     isDragging,
   } = useSortable({ id: task._id, data: { status: task.status } });
 
+  // 7b. Dropped: spring back
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+    zIndex: isDragging ? 999 : 1,
   };
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
@@ -47,125 +105,173 @@ export default function TaskCard({ task, onEdit, onDelete }) {
     : null;
 
   const now = new Date();
-  const isOverdue = dueDate && dueDate < now && task.status !== 'done';
-  const isDueSoon = !isOverdue && dueDate && (dueDate - now) <= (24 * 60 * 60 * 1000) && task.status !== 'done';
+  now.setHours(0,0,0,0);
+  let dueColor = 'text-text-muted';
+  if (dueDate) {
+    const dueDay = new Date(dueDate);
+    dueDay.setHours(0,0,0,0);
+    const diffDays = (dueDay - now) / (1000*60*60*24);
+    if (diffDays < 0 && task.status !== 'done') dueColor = 'text-danger';
+    else if (diffDays === 0 && task.status !== 'done') dueColor = 'text-warning';
+  }
 
   const currentPriorityLabel = task.priorityLabel ||
     (task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : 'Medium');
-  const priority = PRIORITY_CONFIG[currentPriorityLabel] || PRIORITY_CONFIG.Medium;
+  
+  const borderColor = PRIORITY_COLORS[currentPriorityLabel] || PRIORITY_COLORS.Medium;
 
+  // Priority key for badge lookup
+  const priorityKey = (task.priority || 'medium').toLowerCase();
+  const badgeStyle = PRIORITY_BADGE[priorityKey] || PRIORITY_BADGE.medium;
+
+  // Assignee info
   const assigneeName = task.assignedTo?.name;
-  const assigneeInitial = assigneeName?.charAt(0).toUpperCase();
+  const assigneeInitials = getInitials(assigneeName);
+  const avatarColor = getAvatarColor(assigneeName);
+
+  const handleAssign = async (e) => {
+    e.stopPropagation();
+    const userId = e.target.value;
+    if (!userId) return;
+    try {
+      await taskApi.assignTask({ taskId: task._id, assignedTo: userId });
+    } catch(err) {
+      //
+    }
+  };
+
+  // 7b. Dragging: rotate(2deg) scale(1.03), border: 1.5px solid var(--color-primary).
+  const draggingClasses = isDragging 
+    ? 'rotate-[2deg] scale-[1.03] border-[1.5px] border-primary shadow-2xl opacity-80' 
+    : 'border-[0.5px] border-border hover:-translate-y-0.5 hover:shadow-lg';
+
+  // 7a. Description preview: first 60 chars
+  const descriptionPreview = task.description && task.description.length > 60
+    ? task.description.substring(0, 60) + '...'
+    : task.description;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative rounded-xl border-l-[3px] ${priority.border} cursor-pointer transition-all duration-300 ${
-        isDragging
-          ? 'opacity-40 ring-2 ring-primary-400 scale-[1.03] z-50 shadow-2xl shadow-primary-500/20'
-          : 'bg-white/60 dark:bg-surface-900/50 backdrop-blur-lg border border-white/20 dark:border-surface-700/30 shadow-lg shadow-surface-300/20 dark:shadow-surface-950/30 hover:shadow-xl hover:shadow-surface-400/25 dark:hover:shadow-primary-500/10 hover:scale-[1.03] hover:bg-white/70 dark:hover:bg-surface-800/60'
-      }`}
+      onClick={() => onClick && onClick(task)}
+      className={`group relative bg-bg-card rounded-[var(--radius-md)] rounded-l-none border-l-[3px] ${borderColor} cursor-pointer transition-all duration-200 flex flex-col p-4 gap-3 ${draggingClasses}`}
     >
-      {/* ── Gradient Overlay ── */}
-      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/40 to-white/5 dark:from-white/[0.06] dark:to-transparent pointer-events-none" />
+      <div className="flex items-start justify-between gap-2">
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-text-hint hover:text-text-muted cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
 
-      {/* ── Inner Shadow (subtle depth) ── */}
-      <div className="absolute inset-0 rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.15)] pointer-events-none" />
+        <h3 className="flex-1 text-[14px] font-[600] text-text-heading leading-tight pt-0.5">
+          {task.title}
+        </h3>
 
-      {/* ── Main Content ── */}
-      <div className="relative p-4">
-
-        {/* Top Row: Grip + Title + Actions */}
-        <div className="flex items-start gap-2">
-          <button
-            {...attributes}
-            {...listeners}
-            className="mt-[2px] p-0.5 text-surface-300/70 dark:text-surface-500 hover:text-primary-500 cursor-grab active:cursor-grabbing rounded opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0"
-          >
-            <GripVertical className="w-3.5 h-3.5" />
+        {/* Action icons */}
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <button onClick={(e) => { e.stopPropagation(); onViewActivity(task); }} className="p-1 text-text-hint hover:text-primary transition-colors">
+            <Clock className="w-4 h-4" />
           </button>
-
-          <h3 className="flex-1 text-sm font-semibold text-surface-800 dark:text-white leading-snug line-clamp-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
-            {task.title}
-          </h3>
-
-          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
-            <button
-              onClick={() => onEdit(task)}
-              className="p-1.5 rounded-lg text-surface-400/80 hover:text-primary-600 hover:bg-primary-100/50 dark:hover:bg-primary-950/30 backdrop-blur-sm transition-all duration-200 hover:scale-110"
-              title="Edit"
-            >
-              <Pencil className="w-3 h-3" />
+          <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} className="p-1 text-text-hint hover:text-primary transition-colors">
+            <Pencil className="w-4 h-4" />
+          </button>
+          {canDelete(task) && (
+            <button onClick={(e) => { e.stopPropagation(); onDelete(task._id); }} className="p-1 text-text-hint hover:text-danger transition-colors">
+              <Trash2 className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => onDelete(task._id)}
-              className="p-1.5 rounded-lg text-surface-400/80 hover:text-red-600 hover:bg-red-100/50 dark:hover:bg-red-950/30 backdrop-blur-sm transition-all duration-200 hover:scale-110"
-              title="Delete"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
+          )}
+        </div>
+      </div>
+
+      {descriptionPreview && (
+        <p className="text-[12px] text-text-muted pl-6 break-words">
+          {descriptionPreview}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between pl-6 pt-1">
+        {/* Left side: due date + priority badge */}
+        <div className="flex items-center gap-2">
+          {formattedDate && (
+            <div className={`flex items-center gap-1.5 text-[12px] font-[500] ${dueColor}`}>
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{formattedDate}</span>
+            </div>
+          )}
+          {/* FIX 8a — Priority badge (always visible) */}
+          <span
+            style={{
+              ...badgeStyle,
+              fontSize: '11px',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-pill)',
+              lineHeight: '16px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {currentPriorityLabel}
+          </span>
         </div>
 
-        {/* Description */}
-        {task.description && (
-          <p className="text-xs text-surface-500/80 dark:text-surface-400 font-medium mt-1.5 line-clamp-2 leading-relaxed pl-6">
-            {task.description}
-          </p>
-        )}
-
-        {/* ── Divider + Footer ── */}
-        <div className="border-t border-surface-200/30 dark:border-surface-700/30 mt-3 pt-3 pl-6">
-          <div className="flex items-center justify-between gap-2">
-
-            {/* Left: Priority Badge + Task ID */}
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full backdrop-blur-sm ${priority.badge}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${priority.dot}`} />
-                {currentPriorityLabel}
-              </span>
+        {/* FIX 8b — Assignee Avatar */}
+        <div className="relative group/assign" onPointerDown={(e) => e.stopPropagation()}>
+          {assigneeName ? (
+            <div
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: avatarColor.bg,
+                color: avatarColor.text,
+                fontSize: '11px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+              title={assigneeName}
+            >
+              {assigneeInitials}
             </div>
-
-            {/* Right: Due date + Avatar */}
-            <div className="flex items-center gap-2">
-              {formattedDate && (
-                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm ${
-                  isOverdue
-                    ? 'text-red-700 dark:text-red-400 bg-red-200/40 dark:bg-red-900/30'
-                    : isDueSoon
-                      ? 'text-amber-700 dark:text-amber-400 bg-amber-200/40 dark:bg-amber-900/30'
-                      : 'text-surface-600 dark:text-surface-400 bg-surface-200/30 dark:bg-surface-700/30'
-                }`}>
-                  {isOverdue ? (
-                    <AlertCircle className="w-3 h-3" />
-                  ) : isDueSoon ? (
-                    <Clock className="w-3 h-3" />
-                  ) : (
-                    <Calendar className="w-3 h-3" />
-                  )}
-                  {isOverdue ? 'Overdue' : isDueSoon ? 'Soon' : formattedDate}
-                </span>
-              )}
-
-              {/* Assignee Avatar */}
-              {assigneeName ? (
-                <div
-                  className="w-6 h-6 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md shadow-primary-500/30 ring-2 ring-white/50 dark:ring-surface-800/50"
-                  title={assigneeName}
-                >
-                  {assigneeInitial}
-                </div>
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-surface-200/40 dark:bg-surface-700/40 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/50 dark:ring-surface-800/50">
-                  <UserIcon className="w-3 h-3 text-surface-400/70 dark:text-surface-500" />
-                </div>
-              )}
+          ) : (
+            <div
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                border: '1.5px dashed var(--color-border)',
+                color: 'var(--color-text-hint)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Plus style={{ width: '12px', height: '12px' }} />
             </div>
-
-          </div>
+          )}
+          {workspaceMembers.length > 0 && (
+            <select
+              className="absolute inset-0 opacity-0 cursor-pointer text-xs"
+              value={task.assignedTo?._id || ''}
+              onChange={handleAssign}
+            >
+              <option value="" disabled>Assign user</option>
+              {workspaceMembers.map(m => (
+                <option key={m.user._id} value={m.user._id}>{m.user.name}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
     </div>
   );
-}
+});
+
+export default TaskCard;

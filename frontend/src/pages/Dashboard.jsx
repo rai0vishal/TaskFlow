@@ -1,421 +1,505 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useWorkspace } from '../context/WorkspaceContext';
 import { getDashboardData } from '../api/analytics';
+import * as inviteApi from '../api/invites';
+import { getTasks } from '../api/tasks';
+import { customToast as toast } from '../components/ToastSystem';
 import {
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  ListTodo,
-  TrendingUp,
-  Activity,
-  ArrowUpRight,
-  CalendarDays,
-  Zap,
-  Plus,
-  Users,
-  PlusCircle,
-  Pencil,
-  Trash2,
+  Check, X, CheckCircle2, Clock, AlertCircle, ListTodo, TrendingUp, Activity, 
+  ArrowUpRight, CalendarDays, Zap, Plus, Users, PlusCircle, Pencil, Trash2, LayoutGrid, ArrowRight
 } from 'lucide-react';
+import InviteModal from '../components/InviteModal';
 import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  AreaChart,
-  Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area,
 } from 'recharts';
 
-/* ─── Custom Tooltip ─── */
-function CustomTooltip({ active, payload, label }) {
+/* ─── Custom Tooltip (memoized) ─── */
+const CustomTooltip = memo(function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white/95 dark:bg-surface-800/95 backdrop-blur-sm border border-surface-200/80 dark:border-surface-700/80 rounded-xl shadow-2xl shadow-surface-900/10 dark:shadow-surface-950/30 px-4 py-3.5 min-w-[150px]">
-      <p className="text-[10px] font-bold text-surface-400 dark:text-surface-500 mb-2.5 uppercase tracking-[0.12em]">{label}</p>
-      <div className="space-y-1.5">
+    <div className="bg-bg-card border-[0.5px] border-border rounded-[var(--radius-sm)] shadow-xl px-4 py-3 min-w-[150px]">
+      <p className="text-[11px] font-[600] text-text-muted mb-2 uppercase">{label}</p>
+      <div className="space-y-1">
         {payload.map((entry, i) => (
           <div key={i} className="flex items-center justify-between gap-5">
-            <span className="flex items-center gap-2 text-xs font-semibold text-surface-600 dark:text-surface-300">
-              <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: entry.color }} />
+            <span className="flex items-center gap-2 text-[12px] font-[500] text-text-body">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: entry.color }} />
               {entry.name}
             </span>
-            <span className="text-sm font-black text-surface-900 dark:text-white tabular-nums">{entry.value}</span>
+            <span className="text-[14px] font-[700] text-text-heading">{entry.value}</span>
           </div>
         ))}
       </div>
     </div>
   );
+});
+
+/* ─── Animated Counter ─── */
+function StatCounter({ value }) {
+  const [count, setCount] = useState(0);
+  
+  useEffect(() => {
+    let startTime;
+    const duration = 600;
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+    
+    const animate = (time) => {
+      if (!startTime) startTime = time;
+      const progress = Math.min((time - startTime) / duration, 1);
+      
+      setCount(Math.floor(value * easeOutCubic(progress)));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setCount(value);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [value]);
+  
+  return <>{count}</>;
 }
 
-/* ─── Timeline Dot ─── */
+/* ─── Activity Action Icons ─── */
 const ACTION_ICONS = {
-  created: { icon: PlusCircle, bg: 'bg-emerald-500', ring: 'ring-emerald-500/20' },
-  updated: { icon: Pencil, bg: 'bg-blue-500', ring: 'ring-blue-500/20' },
-  deleted: { icon: Trash2, bg: 'bg-red-500', ring: 'ring-red-500/20' },
+  created: { icon: PlusCircle, color: 'text-success' },
+  updated: { icon: Pencil, color: 'text-info' },
+  completed: { icon: Check, color: 'text-primary' },
+  deleted: { icon: Trash2, color: 'text-danger' },
 };
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { socket } = useSocket();
+  const { socket, joinWorkspaceRoom } = useSocket();
+  const { activeWorkspace, isSwitching, loadingWorkspace } = useWorkspace();
+  const navigate = useNavigate();
+  
   const [stats, setStats] = useState({ total: 0, todo: 0, inProgress: 0, done: 0 });
   const [recentActivities, setRecentActivities] = useState([]);
   const [weeklyData, setWeeklyData] = useState([]);
+  const [pendingInvites, setPendingInvites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const debounceRef = useRef(null);
 
-  useEffect(() => { fetchData(); }, []);
+  const [urgentTasks, setUrgentTasks] = useState({ overdue: [], dueToday: [] });
+  const [dismissedBanners, setDismissedBanners] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedBanners')) || {}; } catch { return {}; }
+  });
 
-  // Listen to socket events for real-time dashboard updates
+  const dismissBanner = (id) => {
+    const newDismissed = { ...dismissedBanners, [id]: Date.now() };
+    setDismissedBanners(newDismissed);
+    localStorage.setItem('dismissedBanners', JSON.stringify(newDismissed));
+  };
+
+  const isDismissed = (id) => {
+    const time = dismissedBanners[id];
+    if (!time) return false;
+    return (Date.now() - time) < 24 * 60 * 60 * 1000; // 24h
+  };
+
   useEffect(() => {
-    if (!socket) return;
-    const reloadDashboard = () => fetchData();
-    
-    socket.on('taskCreated', reloadDashboard);
-    socket.on('taskUpdated', reloadDashboard);
-    socket.on('taskDeleted', reloadDashboard);
-    
-    return () => {
-      socket.off('taskCreated', reloadDashboard);
-      socket.off('taskUpdated', reloadDashboard);
-      socket.off('taskDeleted', reloadDashboard);
+    const fetchInvites = async () => {
+      try {
+        const { data } = await inviteApi.getPendingInvites();
+        setPendingInvites(data.data.invites);
+      } catch (err) {}
     };
-  }, [socket]);
+    fetchInvites();
+  }, []);
 
-  const fetchData = async () => {
+  const handleAcceptInvite = async (inviteId) => {
     try {
-      const { data } = await getDashboardData();
+      await inviteApi.acceptInvite({ inviteId });
+      toast.success('Joined Workspace 🎉');
+      setPendingInvites(prev => prev.filter(inv => inv._id !== inviteId));
+      window.location.reload();
+    } catch (err) {}
+  };
+
+  const handleRejectInvite = async (inviteId) => {
+    try {
+      await inviteApi.rejectInvite({ inviteId });
+      toast.info('Invite rejected');
+      setPendingInvites(prev => prev.filter(inv => inv._id !== inviteId));
+    } catch (err) {}
+  };
+
+  const fetchData = useCallback(async () => {
+    if (!activeWorkspace?._id) return;
+    try {
+      const { data } = await getDashboardData(activeWorkspace._id);
       const payload = data.data;
       setStats(payload.stats);
       setRecentActivities(payload.recentActivities);
       setWeeklyData(payload.weeklyProductivity);
+      
+      // Fetch urgent tasks for banners
+      const taskRes = await getTasks({ workspace: activeWorkspace._id });
+      const tasks = taskRes.data?.data?.tasks || [];
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const overdue = [], dueToday = [];
+      tasks.forEach(t => {
+        if (t.status === 'completed' || !t.dueDate) return;
+        const due = new Date(t.dueDate);
+        due.setHours(0,0,0,0);
+        const diffDays = (due - now) / (1000*60*60*24);
+        if (diffDays < 0) overdue.push(t);
+        else if (diffDays === 0) dueToday.push(t);
+      });
+      setUrgentTasks({ overdue, dueToday });
     } catch {
-      // silently fail
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeWorkspace?._id]);
+
+  const debouncedFetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchData(), 500);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (loadingWorkspace) return;
+    if (isSwitching) {
+      setStats({ total: 0, todo: 0, inProgress: 0, done: 0 });
+      setRecentActivities([]);
+      setWeeklyData([]);
+      return;
+    }
+    if (activeWorkspace?._id) {
+      setLoading(true);
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchData, isSwitching, activeWorkspace?._id, loadingWorkspace]);
+
+  useEffect(() => {
+    if (activeWorkspace?._id) {
+      joinWorkspaceRoom(activeWorkspace._id);
+    }
+  }, [activeWorkspace?._id, joinWorkspaceRoom]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('taskCreated', debouncedFetch);
+    socket.on('taskUpdated', debouncedFetch);
+    socket.on('taskMoved', debouncedFetch);
+    socket.on('taskDeleted', debouncedFetch);
+    socket.on('task_assigned', debouncedFetch);
+    return () => {
+      socket.off('taskCreated', debouncedFetch);
+      socket.off('taskUpdated', debouncedFetch);
+      socket.off('taskMoved', debouncedFetch);
+      socket.off('taskDeleted', debouncedFetch);
+      socket.off('task_assigned', debouncedFetch);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [socket, debouncedFetch]);
+
+  useEffect(() => {
+    const openInvite = () => setShowInviteModal(true);
+    window.addEventListener('open-invite', openInvite);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'invite') {
+      setShowInviteModal(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    return () => window.removeEventListener('open-invite', openInvite);
+  }, []);
 
   const completionRate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    let timeGreeting = 'Good evening';
+    if (hour >= 5 && hour < 12) timeGreeting = 'Good morning';
+    else if (hour >= 12 && hour < 17) timeGreeting = 'Good afternoon';
+    return timeGreeting;
+  };
+  
+  const getSubtitle = () => {
+    if (stats.total === 0) return "Ready to start? Create your first task.";
+    if (stats.inProgress >= 4) return `Busy day ahead — ${stats.inProgress} tasks to work through.`;
+    return `You have ${stats.inProgress} tasks in progress. Keep it up!`;
   };
 
-  const statCards = [
-    { label: 'Total Tasks', value: stats.total, icon: ListTodo,
-      iconBg: 'bg-primary-100 dark:bg-primary-900/40', iconColor: 'text-primary-600 dark:text-primary-400',
-      accent: 'group-hover:border-primary-300 dark:group-hover:border-primary-700' },
-    { label: 'To Do', value: stats.todo, icon: Clock,
-      iconBg: 'bg-amber-100 dark:bg-amber-900/40', iconColor: 'text-amber-600 dark:text-amber-400',
-      accent: 'group-hover:border-amber-300 dark:group-hover:border-amber-700' },
-    { label: 'In Progress', value: stats.inProgress, icon: TrendingUp,
-      iconBg: 'bg-blue-100 dark:bg-blue-900/40', iconColor: 'text-blue-600 dark:text-blue-400',
-      accent: 'group-hover:border-blue-300 dark:group-hover:border-blue-700' },
-    { label: 'Completed', value: stats.done, icon: CheckCircle2,
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40', iconColor: 'text-emerald-600 dark:text-emerald-400',
-      accent: 'group-hover:border-emerald-300 dark:group-hover:border-emerald-700' },
-  ];
+  const statCards = useMemo(() => [
+    { label: 'Total Tasks', value: stats.total, filter: 'all', bg: 'bg-primary-light', color: 'text-primary' },
+    { label: 'To Do', value: stats.todo, filter: 'todo', bg: 'bg-warning-bg', color: 'text-warning' },
+    { label: 'In Progress', value: stats.inProgress, filter: 'in_progress', bg: 'bg-info-bg', color: 'text-info' },
+    { label: 'Completed', value: stats.done, filter: 'completed', bg: 'bg-success-bg', color: 'text-success' },
+  ], [stats]);
+
+  const showEmptyState = !loading && stats.total === 0;
 
   return (
-    <div className="font-sans min-h-screen bg-surface-100 dark:bg-surface-950 transition-colors duration-300">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    <div className="font-sans min-h-screen bg-transparent transition-colors duration-300 page-wrapper">
+      <main className="max-w-7xl mx-auto px-[32px] max-sm:px-[16px] py-8">
 
-        {/* ═══════════════════════════════════
-            HEADER + QUICK ACTIONS
-        ═══════════════════════════════════ */}
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 mb-8">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl" role="img" aria-label="wave">👋</span>
-              <p className="text-xs font-semibold text-surface-400 dark:text-surface-500 tracking-wide">
-                {getGreeting()}
-              </p>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white tracking-tight leading-tight">
-              {user?.name}
+            <h1 className="text-[28px] font-[700] text-text-heading leading-tight flex items-center gap-2">
+              <span className="text-[28px]" role="img" aria-label="wave">👋</span>
+              {getGreeting()}, {user?.name?.split(' ')[0]}
             </h1>
-            <p className="mt-2 text-surface-500 dark:text-surface-400 text-sm font-medium flex items-center gap-1.5 leading-relaxed">
-              <CalendarDays className="w-3.5 h-3.5" />
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              <span className="mx-1 text-surface-300 dark:text-surface-600">·</span>
-              Here&apos;s your productivity overview
+            <p className="mt-2 text-text-muted text-[14px] font-[400] flex items-center gap-1.5 leading-relaxed">
+              {getSubtitle()}
             </p>
           </div>
 
-          {/* Quick Actions */}
           <div className="flex items-center gap-3">
             <Link
-              to="/tasks"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 text-sm font-bold hover:bg-surface-200 dark:hover:bg-surface-700 hover:scale-105 transition-all duration-200 active:scale-95 border border-surface-200/60 dark:border-surface-700/60"
+              to="/tasks?action=new-task"
+              className="inline-flex items-center justify-center font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] bg-transparent text-primary border-[1.5px] border-primary hover:bg-primary-light transition-all active:scale-[0.98]"
             >
-              <Plus className="w-4 h-4" /> New Task
+              <Plus className="w-4 h-4 mr-2" /> New Task
             </Link>
             <Link
               to="/tasks"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-bold hover:bg-primary-700 shadow-md shadow-primary-500/25 hover:shadow-lg hover:shadow-primary-500/30 hover:scale-105 transition-all duration-200 active:scale-95"
+              className="inline-flex items-center justify-center font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] bg-primary text-white border-none hover:bg-primary-dark transition-all active:scale-[0.98]"
             >
-              <Zap className="w-4 h-4" /> Task Board <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
+              Task Board <ArrowUpRight className="w-4 h-4 ml-2" />
             </Link>
           </div>
         </div>
 
-        {/* ═══════════════════════════════════
-            STAT CARDS
-        ═══════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 mb-8">
-          {statCards.map((stat) => (
-            <div
-              key={stat.label}
-              className={`group bg-gradient-to-b from-white to-surface-50/30 dark:from-surface-900 dark:to-surface-950/50 border border-surface-200/80 dark:border-surface-800/80 rounded-2xl p-6 shadow-lg shadow-surface-200/40 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/5 hover:shadow-xl hover:shadow-surface-300/50 dark:hover:shadow-black/60 hover:scale-[1.02] transition-all duration-300 cursor-default ${stat.accent}`}
-            >
-              {/* Icon */}
-              <div
-                className={`w-11 h-11 rounded-full ${stat.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}
-              >
-                <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
+        {/* Urgent Alerts */}
+        {!loading && activeWorkspace && (
+          <div className="space-y-3 mb-8">
+            {urgentTasks.overdue.length > 0 && !isDismissed('overdue') && (
+              <div className="bg-danger-bg border-[0.5px] border-danger-border rounded-[var(--radius-sm)] p-4 flex justify-between items-center animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="text-danger w-5 h-5" />
+                  <span className="text-danger text-[14px] font-[500]">You have {urgentTasks.overdue.length} overdue task(s).</span>
+                </div>
+                <button onClick={() => dismissBanner('overdue')} className="text-danger hover:opacity-70"><X className="w-4 h-4" /></button>
               </div>
-
-              {/* Number */}
-              <p className="text-4xl font-black text-surface-900 dark:text-white tracking-tight leading-none mb-2">
-                {loading ? (
-                  <span className="inline-block w-12 h-9 bg-surface-100 dark:bg-surface-800 rounded-lg animate-pulse" />
-                ) : (
-                  stat.value
-                )}
-              </p>
-
-              {/* Label */}
-              <p className="text-xs font-medium text-surface-500 dark:text-surface-400 tracking-wide">
-                {stat.label}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* ═══════════════════════════════════
-            COMPLETION RING + CHART
-        ═══════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 mb-8">
-
-          {/* Completion Rate */}
-          <div className="lg:col-span-1 bg-gradient-to-b from-white to-surface-50/50 dark:from-surface-900 dark:to-surface-950/80 border border-surface-200/80 dark:border-surface-800/80 rounded-2xl p-6 flex flex-col items-center justify-center shadow-xl shadow-surface-200/40 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/5 hover:shadow-2xl hover:shadow-surface-300/50 dark:hover:shadow-black/60 hover:scale-[1.02] transition-all duration-300">
-            <p className="text-xs font-semibold text-surface-500 dark:text-surface-400 tracking-wide mb-4">
-              Completion Rate
-            </p>
-
-            {/* Ring */}
-            <div className="relative w-32 h-32 mb-5">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                {/* Track */}
-                <circle cx="18" cy="18" r="15.5" fill="none" strokeWidth="3" stroke="#F4F4F5"
-                  className="dark:stroke-surface-800" />
-                {/* Gradient */}
-                <defs>
-                  <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#a5b4fc" />
-                    <stop offset="50%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#4f46e5" />
-                  </linearGradient>
-                </defs>
-                {/* Progress Arc */}
-                <circle
-                  cx="18" cy="18" r="15.5" fill="none"
-                  stroke="url(#ringGradient)"
-                  strokeWidth="3.5"
-                  strokeDasharray={`${completionRate}, 100`}
-                  strokeLinecap="round"
-                  style={{
-                    filter: 'drop-shadow(0 0 6px rgba(99, 102, 241, 0.4))',
-                    animation: 'ring-fill 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                  }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-black text-surface-900 dark:text-white tabular-nums leading-none">
-                  {loading ? '—' : `${completionRate}%`}
-                </span>
-                <span className="text-[10px] font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-widest mt-1">
-                  Complete
-                </span>
+            )}
+            {urgentTasks.dueToday.length > 0 && !isDismissed('dueToday') && (
+              <div className="bg-warning-bg border-[0.5px] border-warning-border rounded-[var(--radius-sm)] p-4 flex justify-between items-center animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-3">
+                  <Clock className="text-warning w-5 h-5" />
+                  <span className="text-warning text-[14px] font-[500]">You have {urgentTasks.dueToday.length} task(s) due today.</span>
+                </div>
+                <button onClick={() => dismissBanner('dueToday')} className="text-warning hover:opacity-70"><X className="w-4 h-4" /></button>
               </div>
-            </div>
-
-            {/* Stats Row */}
-            <div className="flex items-center gap-3 text-xs font-semibold tabular-nums">
-              <span className="text-primary-600 dark:text-primary-400 font-bold">{stats.done} done</span>
-              <span className="w-1 h-1 rounded-full bg-surface-300 dark:bg-surface-600" />
-              <span className="text-surface-500 dark:text-surface-400">{stats.total} total</span>
-            </div>
+            )}
           </div>
+        )}
 
-          {/* Weekly Productivity Chart */}
-          <div className="lg:col-span-2 bg-gradient-to-b from-white to-surface-50/50 dark:from-surface-900 dark:to-surface-950/80 border border-surface-200/80 dark:border-surface-800/80 rounded-2xl overflow-hidden flex flex-col shadow-xl shadow-surface-200/40 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/5 hover:shadow-2xl hover:shadow-surface-300/50 dark:hover:shadow-black/60 hover:scale-[1.005] transition-all duration-300">
-            <div className="px-6 py-5 border-b border-surface-100 dark:border-surface-800 flex items-center justify-between">
-              <h2 className="text-base font-bold text-surface-900 dark:text-white flex items-center gap-2.5">
-                <TrendingUp className="w-4.5 h-4.5 text-primary-500" />
-                Weekly Productivity
-              </h2>
-              <span className="text-xs font-medium text-surface-400 dark:text-surface-500 tracking-wide">Last 7 days</span>
-            </div>
-            <div className="p-5 flex-1 min-h-[280px]">
-              {loading ? (
-                <div className="w-full h-full bg-surface-50 dark:bg-surface-800/50 animate-pulse rounded-lg" />
-              ) : weeklyData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center text-surface-400 font-medium text-sm">No data this week</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                  <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradCompleted" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
-                        <stop offset="50%" stopColor="#6366f1" stopOpacity={0.1} />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gradCreated" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#a5b4fc" stopOpacity={0.3} />
-                        <stop offset="50%" stopColor="#a5b4fc" stopOpacity={0.08} />
-                        <stop offset="100%" stopColor="#a5b4fc" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" className="dark:stroke-surface-800" />
-                    <XAxis
-                      dataKey="date" axisLine={false} tickLine={false}
-                      tick={{ fill: '#A1A1AA', fontSize: 11, fontWeight: 600 }} dy={8}
-                    />
-                    <YAxis
-                      axisLine={false} tickLine={false} allowDecimals={false}
-                      tick={{ fill: '#A1A1AA', fontSize: 11, fontWeight: 600 }}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#c7d2fe', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
-                    <Legend
-                      iconType="circle" iconSize={8}
-                      wrapperStyle={{ paddingTop: '16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.03em' }}
-                    />
-                    <Area
-                      type="natural" dataKey="created" name="Created"
-                      stroke="#a5b4fc" strokeWidth={3}
-                      fill="url(#gradCreated)" dot={false}
-                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: '#a5b4fc', fill: 'white' }}
-                    />
-                    <Area
-                      type="natural" dataKey="completed" name="Completed"
-                      stroke="#6366f1" strokeWidth={3}
-                      fill="url(#gradCompleted)" dot={false}
-                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: '#6366f1', fill: 'white' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════
-            ACTIVITY TIMELINE
-        ═══════════════════════════════════ */}
-        <div className="max-w-3xl mx-auto w-full bg-gradient-to-b from-white to-surface-50/50 dark:from-surface-900 dark:to-surface-950/80 border border-surface-200/80 dark:border-surface-800/80 rounded-2xl overflow-hidden shadow-xl shadow-surface-200/40 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/5">
-          <div className="px-6 py-5 border-b border-surface-100 dark:border-surface-800 flex items-center justify-between">
-            <h2 className="text-base font-bold text-surface-900 dark:text-white flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-                <Activity className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-              </div>
-              Activity Timeline
-            </h2>
-            <span className="text-xs font-medium text-surface-400 dark:text-surface-500 tracking-wide tabular-nums">
-              {recentActivities.length} event{recentActivities.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="p-6 space-y-5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-surface-100 dark:bg-surface-800 animate-pulse shrink-0" />
-                  <div className="flex-1 space-y-2 pt-1">
-                    <div className="h-3.5 w-3/4 bg-surface-100 dark:bg-surface-800 rounded animate-pulse" />
-                    <div className="h-3 w-1/3 bg-surface-50 dark:bg-surface-800/50 rounded animate-pulse" />
+        {/* Pending Invitations */}
+        {pendingInvites.length > 0 && (
+          <div className="mb-8 bg-bg-surface border-[0.5px] border-border rounded-[var(--radius-md)] p-6">
+            <h2 className="text-[16px] font-[600] text-text-heading mb-4">Pending Invites</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingInvites.map((invite) => (
+                <div key={invite._id} className="bg-bg-card border-[0.5px] border-border rounded-[var(--radius-sm)] p-4 flex flex-col justify-between">
+                  <div className="mb-4">
+                    <h3 className="font-[600] text-text-heading text-[16px]">{invite.workspace?.name}</h3>
+                    <p className="text-[12px] text-text-muted mt-1">Invited by {invite.sender?.name}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleAcceptInvite(invite._id)} className="flex-1 bg-primary text-white text-[12px] font-[600] py-2 rounded-[var(--radius-sm)] hover:bg-primary-dark transition-colors">Accept</button>
+                    <button onClick={() => handleRejectInvite(invite._id)} className="flex-1 bg-transparent text-text-body border-[0.5px] border-border text-[12px] font-[600] py-2 rounded-[var(--radius-sm)] hover:bg-bg-surface transition-colors">Reject</button>
                   </div>
                 </div>
               ))}
             </div>
-          ) : recentActivities.length === 0 ? (
-            <div className="p-10 text-center flex flex-col items-center">
-              <div className="w-14 h-14 rounded-xl bg-surface-100 dark:bg-surface-800 flex items-center justify-center mb-3">
-                <AlertCircle className="w-7 h-7 text-surface-300 dark:text-surface-600" />
-              </div>
-              <p className="text-surface-700 dark:text-surface-200 font-bold text-base">No activity yet</p>
-              <p className="text-surface-400 dark:text-surface-500 text-xs mt-1 max-w-[240px]">
-                Start creating or updating tasks and your feed will populate here.
-              </p>
+          </div>
+        )}
+
+        {/* Dashboard Content */}
+        {!activeWorkspace && !loading ? (
+          <div className="text-center py-20 bg-bg-card border-[0.5px] border-border rounded-[var(--radius-md)] mt-8">
+            <LayoutGrid className="w-16 h-16 text-text-hint mx-auto mb-5" />
+            <h3 className="text-[22px] font-[600] text-text-heading mb-2">No active workspace</h3>
+            <p className="text-[14px] text-text-body max-w-sm mx-auto">
+              Please select or create a workspace from the top menu to see your productivity metrics.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-[16px] mb-[16px]">
+              {loading ? (
+                [1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-[80px] w-full" />)
+              ) : (
+                statCards.map((stat) => (
+                  <div
+                    key={stat.label}
+                    onClick={() => navigate(`/tasks?filter=${stat.filter}`)}
+                    className={`group ${stat.bg} rounded-[var(--radius-md)] p-5 cursor-pointer flex flex-col justify-center relative overflow-hidden transition-all duration-150 border-[0.5px] border-transparent hover:border-primary hover:-translate-y-[2px]`}
+                  >
+                    <p className={`text-[28px] font-[700] ${stat.color} leading-none mb-1`}>
+                      <StatCounter value={stat.value} />
+                    </p>
+                    <p className="text-[12px] font-[500] text-text-muted">{stat.label}</p>
+                    <ArrowRight className={`absolute bottom-4 right-4 w-4 h-4 ${stat.color} opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1`} />
+                  </div>
+                ))
+              )}
             </div>
-          ) : (
-            <div className="max-h-[400px] overflow-y-auto">
-              <div className="relative px-6 py-5">
-                {/* Vertical timeline line */}
-                <div className="absolute left-[39px] top-5 bottom-5 w-[2px] bg-gradient-to-b from-surface-200 via-surface-200/80 to-transparent dark:from-surface-700 dark:via-surface-700/60 rounded-full" />
 
-                <div className="space-y-0.5">
-                  {recentActivities.map((activity) => {
-                    const actionType = ACTION_ICONS[activity.action] || ACTION_ICONS.updated;
-                    const IconComp = actionType.icon;
-                    const actionLabel = activity.action === 'created' ? 'Created' : activity.action === 'updated' ? 'Updated' : 'Deleted';
-                    const actionLabelColor = activity.action === 'created'
-                      ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
-                      : activity.action === 'updated'
-                        ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40'
-                        : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40';
-
-                    return (
-                      <div
-                        key={activity._id}
-                        className="relative flex items-start gap-3.5 py-3.5 px-2 -mx-2 rounded-lg hover:bg-surface-50/80 dark:hover:bg-surface-800/30 transition-colors duration-150 group"
-                      >
-                        {/* Timeline Dot */}
-                        <div className={`relative z-10 w-8 h-8 rounded-full ${actionType.bg} ring-[3px] ${actionType.ring} dark:ring-opacity-15 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-sm`}>
-                          <IconComp className="w-3.5 h-3.5 text-white" />
-                        </div>
-
-                        {/* Content */}
-                        <div className="min-w-0 pt-1">
-                          <p className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
-                            <span className="font-bold text-surface-900 dark:text-white">
-                              {activity.performedBy.name}
-                            </span>{' '}
-                            <span className={`inline-flex items-center px-1.5 py-[1px] rounded text-[10px] font-bold ${actionLabelColor} mx-0.5`}>
-                              {actionLabel}
-                            </span>{' '}
-                            <span className="font-semibold text-surface-700 dark:text-surface-200">
-                              &quot;{activity.task?.title || 'Unknown Task'}&quot;
-                            </span>
-                          </p>
-                          <p className="text-xs text-surface-400 dark:text-surface-500 font-medium mt-1.5 flex items-center gap-1.5">
-                            <Clock className="w-3 h-3" />
-                            {new Date(activity.createdAt).toLocaleString(undefined, {
-                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
-
-                        {/* Avatar */}
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-sm ring-2 ring-white dark:ring-surface-900 group-hover:ring-surface-50 dark:group-hover:ring-surface-800/30 transition-all">
-                          {activity.performedBy.name.charAt(0).toUpperCase()}
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* Visualizations & Lists */}
+            {showEmptyState ? (
+              <div className="bg-bg-card border-[0.5px] border-border rounded-[var(--radius-md)] p-8 max-w-2xl mx-auto mt-8 text-center animate-in fade-in zoom-in-95">
+                <h3 className="text-[22px] font-[600] text-text-heading mb-6">Get started with TaskFlow</h3>
+                
+                <div className="w-full h-[4px] bg-border rounded-full mb-8 overflow-hidden relative">
+                  <div className="absolute top-0 left-0 h-full bg-primary" style={{ animation: 'barFill 600ms ease-out 50ms forwards', width: '0%' }} />
+                </div>
+                <style>{`@keyframes barFill { to { width: 33%; } }`}</style>
+                
+                <div className="space-y-4 text-left inline-block max-w-sm w-full mx-auto">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-[1.5px] border-primary bg-primary-light flex items-center justify-center"><Check className="w-3 h-3 text-primary" /></div>
+                    <span className="text-[14px] text-text-body line-through opacity-70">Create workspace</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-[1.5px] border-border" />
+                    <span className="text-[14px] text-text-heading font-[500]">Create first task</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-[1.5px] border-border" />
+                    <span className="text-[14px] text-text-body">Set a due date</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-[1.5px] border-border" />
+                    <span className="text-[14px] text-text-body">Move to In Progress</span>
+                  </div>
+                </div>
+                <div className="mt-8">
+                  <Link to="/tasks?action=new-task" className="inline-block bg-primary text-white font-[600] text-[14px] px-[20px] py-[9px] rounded-[var(--radius-sm)] hover:bg-primary-dark transition-colors">
+                    Create first task
+                  </Link>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[16px] mb-[16px]">
+                <div className="lg:col-span-1 bg-bg-card border-[0.5px] border-border rounded-[var(--radius-md)] p-6 flex flex-col items-center justify-center">
+                  <p className="text-[16px] font-[600] text-text-heading w-full text-left mb-6">Completion Rate</p>
+                  <div className="relative w-32 h-32 mb-6">
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                      <circle cx="18" cy="18" r="15.5" fill="none" strokeWidth="3" className="stroke-border" />
+                      <circle
+                        cx="18" cy="18" r="15.5" fill="none"
+                        stroke="var(--color-primary)"
+                        strokeWidth="3.5"
+                        strokeDasharray="100, 100"
+                        strokeDashoffset="100"
+                        strokeLinecap="round"
+                        style={{
+                          animation: `dashOffset 800ms ease-out forwards`,
+                          '--target-offset': 100 - completionRate
+                        }}
+                      />
+                    </svg>
+                    <style>{`@keyframes dashOffset { to { stroke-dashoffset: var(--target-offset); } }`}</style>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-[28px] font-[700] text-text-heading leading-none">
+                        {loading ? '—' : `${completionRate}%`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-full h-[4px] bg-border rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-600 ease-out" style={{ width: `${completionRate}%` }} />
+                  </div>
+                </div>
 
+                <div className="lg:col-span-2 bg-bg-card border-[0.5px] border-border rounded-[var(--radius-md)] overflow-hidden flex flex-col">
+                  <div className="px-6 py-4 border-b-[0.5px] border-border flex items-center justify-between">
+                    <h2 className="text-[16px] font-[600] text-text-heading">Weekly Productivity</h2>
+                  </div>
+                  <div className="p-5">
+                    {loading ? (
+                      <div className="skeleton h-[280px] w-full" />
+                    ) : weeklyData.length === 0 ? (
+                      <div className="w-full h-[280px] flex items-center justify-center text-text-muted text-[14px]">No data this week</div>
+                    ) : (
+                      <div style={{ width: '100%', height: '280px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="gradCompleted" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="gradCreated" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="var(--color-info)" stopOpacity={0.2} />
+                                <stop offset="100%" stopColor="var(--color-info)" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--color-border-light)" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} dy={8} />
+                            <YAxis axisLine={false} tickLine={false} allowDecimals={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--color-border)', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
+                            <Legend iconType="circle" iconSize={5} wrapperStyle={{ fontSize: '12px', color: 'var(--color-text-body)' }} />
+                            <Area type="monotone" dataKey="created" name="Created" stroke="var(--color-info)" strokeWidth={2} fill="url(#gradCreated)" dot={{ r: 5, fill: 'var(--color-info)' }} activeDot={{ r: 6 }} />
+                            <Area type="monotone" dataKey="completed" name="Completed" stroke="var(--color-primary)" strokeWidth={2} fill="url(#gradCompleted)" dot={{ r: 5, fill: 'var(--color-primary)' }} activeDot={{ r: 6 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="w-full bg-bg-card border-[0.5px] border-border rounded-[var(--radius-md)] overflow-hidden">
+              <div className="px-6 py-4 border-b-[0.5px] border-border flex items-center justify-between">
+                <h2 className="text-[16px] font-[600] text-text-heading">Activity Timeline</h2>
+              </div>
+
+              {loading ? (
+                <div className="p-6 space-y-4">
+                  {[1, 2, 3].map((i) => <div key={i} className="skeleton h-[40px] w-full" />)}
+                </div>
+              ) : recentActivities.length === 0 ? (
+                <div className="p-8 text-center text-text-muted text-[14px]">
+                  No activity yet.
+                </div>
+              ) : (
+                <div className="max-h-[300px] overflow-y-auto px-6 py-4">
+                  <div className="space-y-4">
+                    {recentActivities.map((activity) => {
+                      const actionType = ACTION_ICONS[activity.action] || ACTION_ICONS.updated;
+                      const IconComp = actionType.icon;
+                      
+                      return (
+                        <div key={activity._id} className="flex items-start gap-4">
+                          <IconComp className={`w-5 h-5 mt-0.5 shrink-0 ${actionType.color}`} />
+                          <div className="flex-1">
+                            <p className="text-[14px] text-text-body leading-snug">
+                              <span className="font-[600] text-text-heading">{activity.performedBy?.name || 'User'}</span>
+                              {' '}{activity.action}{' '}
+                              <span className="font-[500] text-text-heading">"{activity.task?.title || 'Task'}"</span>
+                            </p>
+                            <p className="text-[11px] text-text-hint mt-1">
+                              {new Date(activity.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </main>
+
+      <InviteModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} workspace={activeWorkspace} />
     </div>
   );
 }

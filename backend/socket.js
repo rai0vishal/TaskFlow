@@ -1,7 +1,7 @@
 const socketIo = require('socket.io');
 const logger = require('./utils/logger');
 const Message = require('./models/Message');
-const Conversation = require('./models/Conversation');
+
 let io;
 
 // Track online users mapping: socket.id -> userId
@@ -20,52 +20,7 @@ module.exports = {
     io.on('connection', (socket) => {
       logger.info(`Socket connected: ${socket.id}`);
 
-      // Handle joining board rooms
-      socket.on('joinBoard', (boardId) => {
-        socket.join(`board_${boardId}`);
-        logger.info(`Socket ${socket.id} joined board_${boardId}`);
-      });
-
-      // Handle leaving board rooms
-      socket.on('leaveBoard', (boardId) => {
-        socket.leave(`board_${boardId}`);
-        logger.info(`Socket ${socket.id} left board_${boardId}`);
-      });
-
-      // Handle joining chat rooms for 1-to-1 conversations
-      socket.on('joinChat', (conversationId) => {
-        socket.join(`chat_${conversationId}`);
-        logger.info(`Socket ${socket.id} joined chat_${conversationId}`);
-      });
-
-      // Handle receiving and sending a direct message
-      socket.on('sendMessage', async (data) => {
-        try {
-          const { conversationId, senderId, content } = data;
-          
-          // Save to database
-          const message = await Message.create({
-            conversationId,
-            sender: senderId,
-            content,
-          });
-
-          // Populate the sender so frontend can display name
-          const populatedMessage = await message.populate('sender', 'name email');
-
-          // Update latest message pointer in Conversation
-          await Conversation.findByIdAndUpdate(conversationId, {
-            lastMessage: message._id,
-          });
-
-          // Broadcast to the specific 1-to-1 room
-          io.to(`chat_${conversationId}`).emit('newMessage', populatedMessage);
-        } catch (error) {
-          logger.error('Error handling sendMessage socket event:', error);
-        }
-      });
-
-      // Handle generic user namespace for global updates
+      // General user joining
       socket.on('joinUserRoom', (userId) => {
         socket.join(`user_${userId}`);
         onlineUsers.set(socket.id, userId);
@@ -79,12 +34,77 @@ module.exports = {
         socket.emit('onlineUsers', onlineArray);
       });
 
+      // Handle Workspace specific joining
+      socket.on('joinWorkspace', (workspaceId) => {
+        socket.join(`workspace_${workspaceId}`);
+        logger.info(`Socket ${socket.id} joined workspace_${workspaceId}`);
+      });
+
+      socket.on('leaveWorkspace', (workspaceId) => {
+        socket.leave(`workspace_${workspaceId}`);
+        logger.info(`Socket ${socket.id} left workspace_${workspaceId}`);
+      });
+
+      // Chat Events
+      socket.on('send_message', async (data) => {
+        try {
+          const { workspaceId, senderId, text } = data;
+          
+          if (!workspaceId || !senderId || !text) return;
+
+          const message = await Message.create({
+            workspace: workspaceId,
+            sender: senderId,
+            text,
+            seenBy: [senderId]
+          });
+
+          const popMessage = await Message.findById(message._id).populate('sender', 'name email');
+          
+          // Emit to the workspace room for real-time chat updates
+          io.to(`workspace_${workspaceId}`).emit('new_message', popMessage);
+
+          // Find workspace members and increment their unread counter if they aren't the sender
+          const Workspace = require('./models/Workspace');
+          const workspace = await Workspace.findById(workspaceId);
+          if (workspace) {
+            workspace.members.forEach((member) => {
+              if (member.user.toString() !== senderId.toString()) {
+                io.to(`user_${member.user.toString()}`).emit('unread_message_increment', workspaceId);
+              }
+            });
+          }
+        } catch (error) {
+          logger.error('Error handling send_message socket event:', error);
+        }
+      });
+
+      socket.on('typing', ({ workspaceId, userName }) => {
+        socket.to(`workspace_${workspaceId}`).emit('user_typing', userName);
+      });
+
+      socket.on('stop_typing', ({ workspaceId }) => {
+        socket.to(`workspace_${workspaceId}`).emit('user_stop_typing');
+      });
+
+      socket.on('message_seen', async ({ workspaceId, messageId, userId }) => {
+        try {
+          const message = await Message.findById(messageId);
+          if (message && !message.seenBy.includes(userId)) {
+            message.seenBy.push(userId);
+            await message.save();
+            io.to(`workspace_${workspaceId}`).emit('message_updated', message);
+          }
+        } catch(error) {
+          logger.error('Error in message_seen', error);
+        }
+      });
+
       socket.on('disconnect', () => {
         logger.info(`Socket disconnected: ${socket.id}`);
         const userId = onlineUsers.get(socket.id);
         if (userId) {
           onlineUsers.delete(socket.id);
-          // Check if user is still connected via other tabs/devices
           const hasOtherTabs = Array.from(onlineUsers.values()).includes(userId);
           if (!hasOtherTabs) {
             io.emit('userOffline', userId);
@@ -98,5 +118,8 @@ module.exports = {
   getIO: () => {
     if (!io) throw new Error('Socket.io is not initialized!');
     return io;
+  },
+  getOnlineUsers: () => {
+    return Array.from(new Set(onlineUsers.values()));
   }
 };

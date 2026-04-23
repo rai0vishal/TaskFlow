@@ -1,13 +1,16 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Workspace = require('../models/Workspace');
 const config = require('../config');
 const ApiError = require('../utils/ApiError');
 
 /**
- * Generate a signed JWT for a user.
+ * Generate Access and Refresh JWTs for a user.
+ * Access tokens are short-lived for security, while refresh tokens 
+ * are long-lived and used to obtain new access tokens.
  *
  * @param {object} user - Mongoose user document
- * @returns {string} JWT token
+ * @returns {object} { accessToken, refreshToken }
  */
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
@@ -40,6 +43,13 @@ const register = async ({ name, email, password }) => {
 
   // Create user (password is hashed via pre-save hook)
   const user = await User.create({ name, email, password });
+
+  // Auto-create default Workspace for the user
+  await Workspace.create({
+    name: 'My Workspace',
+    owner: user._id,
+    members: [{ user: user._id, role: 'admin' }]
+  });
 
   // Generate JWTs
   const tokens = generateTokens(user);
@@ -79,10 +89,11 @@ const login = async ({ email, password }) => {
 };
 
 /**
- * Refresh the access token using a refresh token.
+ * Refresh the access token using a valid refresh token.
+ * This extends the user's session without requiring re-login.
  *
  * @param {string} token - The refresh token
- * @returns {{ accessToken: string, refreshToken: string }}
+ * @returns {object} { accessToken, refreshToken }
  */
 const refreshToken = async (token) => {
   if (!token) {

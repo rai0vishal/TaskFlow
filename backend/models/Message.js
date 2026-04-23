@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema(
   {
-    conversationId: {
+    workspace: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Conversation',
+      ref: 'Workspace',
       required: true,
       index: true,
     },
@@ -13,22 +13,24 @@ const messageSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    content: {
+    text: {
       type: String,
       required: true,
       trim: true,
     },
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
+    seenBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
 
-// Sorting messages by creation time
-messageSchema.index({ conversationId: 1, createdAt: 1 });
+// Sorting messages by creation time within a workspace
+messageSchema.index({ workspace: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);

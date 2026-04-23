@@ -17,7 +17,7 @@
 
 ## 📖 About
 
-**TaskFlow** is an advanced, full-stack project management platform engineered for speed and real-time collaboration. By leveraging a highly decoupled MERN architecture alongside **Socket.IO payload synchronization**, TaskFlow seamlessly bridges the gap between secure, scalable backend processing and a hyper-fluid, modern client experience. 
+**TaskFlow** is a multi-workspace, collaborative task management SaaS application engineered for speed and real-time productivity. By leveraging a highly decoupled MERN architecture alongside **Socket.IO synchronization**, TaskFlow seamlessly bridges the gap between secure, scalable backend processing and a hyper-fluid, modern client experience. It features a robust workspace-based architecture, real-time collaboration, and strict role-based access control (RBAC). 
 
 ---
 
@@ -37,13 +37,12 @@
 
 | Category | Features |
 |---|---|
-| **Real-Time Engine** | Socket.IO bi-directional communication ensures instant UI state syncs across client instances |
-| **Messaging & Chat** | Real-time 1-to-1 conversations with online presence indicators and persistent message history |
-| **Task Board Architecture** | High-performance drag-and-drop functionality built on `@dnd-kit/core` |
-| **Analytics Dashboard** | Live telemetry, completion velocity graphs via `recharts`, and comprehensive audit timelines |
-| **Authentication** | Hardened JWT flows with refresh token rotation and isolated user constraints |
-| **Validation Layer** | Rigid deterministic payload validation utilizing Zod schemas across core modules |
-| **Security Mesh** | Helmet CSP, rigid CORS matrices, rate limiting, and NoSQL injection protection |
+| **Workspace System** | Multi-workspace support, seamless switching with persistence, and complete workspace-based data isolation. |
+| **Task Management** | Kanban board with drag-and-drop, task assignment/ownership, role-based permissions, and isolated activity history. |
+| **Collaboration** | Workspace-based real-time chat, online/offline presence tracking, typing indicators, and unread badges. |
+| **Invite System** | Admin-only workspace invites with a clean, dashboard-based acceptance/rejection flow. |
+| **Analytics & Profile** | User productivity analytics, performance vs. contribution metrics, date-based filtering, and a 90-day activity heatmap. |
+| **Security & RBAC** | Strict Role-Based Access Control (Admin vs Member), backend API validation, and workspace-level data isolation. |
 
 
 ---
@@ -65,17 +64,17 @@
 | Technology | Purpose |
 |---|---|
 | **React 19** | Concurrent UI rendering |
-| **Vite** | Highly optimized HMR and build compilation |
+| **Context API** | Global state management across workspaces |
 | **Tailwind CSS v4** | Granular design-token application and glassmorphism styling |
 | **Recharts** | Granular SVG data visualization |
 | **@dnd-kit** | Sensor-based kinematic drag-and-drop systems |
-| **Lucide React** | Scale-invariant iconography |
+| **Socket.IO-client** | Real-time bi-directional events |
 
 ---
 
-## 🏗 Modular Architecture
+## 🏗 Key Architectural Highlights
 
-```
+```text
 ┌──────────────┐    HTTPS / WebSockets    ┌──────────────────┐       Mongoose      ┌──────────────┐
 │              │  ────────────────────▶   │                  │  ──────────────▶    │              │
 │    React     │    /api/v1/*   [WS]      │   Node.js API    │     Queries         │   MongoDB    │
@@ -84,13 +83,35 @@
 └──────────────┘                          └──────────────────┘                     └──────────────┘
 ```
 
-**System Flow:**
-1. Clients establish secure JWT identity upon boot.
-2. The UI intercepts local interaction vectors, initiating zero-latency Optimistic Updates.
-3. Axios commits mutations through Zod validation boundaries into the Express controllers.
-4. Mongoose ODM handles database transactional consistency.
-5. Socket.io emitters simultaneously broadcast state changes and messaging data to connected peer clusters.
+**System Flow & Architecture:**
+- **Multi-Tenant Workspace Architecture**: Complete data isolation and strict RBAC enforcement per workspace.
+- **Global State Management**: React Context API heavily utilized for seamless, persistent workspace switching and global loading states.
+- **Real-Time Communication**: Socket.IO integrated for live chat, task updates, and presence tracking without page reloads.
+- **Optimized Data Layer**: MongoDB queries optimized with indexing and clean separation of concerns between controllers and services.
+- **Optimistic UI Updates**: The UI intercepts local interaction vectors, initiating zero-latency visual feedback before backend confirmation.
 
+
+---
+
+## 🚀 Performance & Optimization
+
+- **Compound Indexing**: Complex queries for analytics and dashboard metrics are optimized using Mongoose compound indices.
+- **Workspace-Scoped Queries**: All API queries strictly bind to `workspaceId` to prevent data leakage across organizations.
+- **Optimized Rendering**: Heavy use of React memoization (`useMemo`, `useCallback`) to prevent unnecessary component re-renders during websocket events.
+- **Component Lazy Loading**: Code-splitting and lazy loading applied to heavy dashboard and charting components.
+
+## 🔐 Security & RBAC
+
+- **Role-Based Access Control**: Granular permissions distinguishing between `Admin` and `Member` capabilities.
+- **Restricted Actions**: Only Admins/Creators can delete tasks or invite users; members are strictly limited to participation.
+- **API Validation**: Backend enforces strict Zod schema validation and authorization headers on every request.
+
+## 🎨 UX Improvements
+
+- **Dashboard-Based Invite System**: Cleanly surfaced actionable invites rather than burying them in basic notifications.
+- **Clean Separation of Concerns**: Task editing and activity history are separated into dedicated, distraction-free panels.
+- **Polished Aesthetics**: Dynamic glassmorphism elements, human-readable timestamps, and carefully orchestrated loading/empty states.
+- **Workspace Management Safety**: Critical actions (like workspace deletion) include confirmation states and "Undo" toast capabilities for safe recovery (Soft Delete/Archiving).
 
 ---
 
