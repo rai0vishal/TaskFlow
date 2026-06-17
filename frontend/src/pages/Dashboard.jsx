@@ -147,7 +147,7 @@ export default function Dashboard() {
       now.setHours(0,0,0,0);
       const overdue = [], dueToday = [];
       tasks.forEach(t => {
-        if (t.status === 'completed' || !t.dueDate) return;
+        if (t.status === 'done' || !t.dueDate) return;
         const due = new Date(t.dueDate);
         due.setHours(0,0,0,0);
         const diffDays = (due - now) / (1000*60*60*24);

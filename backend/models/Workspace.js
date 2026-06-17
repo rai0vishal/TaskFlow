@@ -40,6 +40,12 @@ const workspaceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    leftMembers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 );

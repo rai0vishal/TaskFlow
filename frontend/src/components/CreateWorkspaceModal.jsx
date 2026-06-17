@@ -39,85 +39,161 @@ export default function CreateWorkspaceModal({ isOpen, onClose }) {
     }
   };
 
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--color-bg-surface)',
+    color: 'var(--color-text-body)',
+    border: '0.5px solid var(--color-border)',
+    fontSize: '14px',
+    fontWeight: 500,
+    outline: 'none',
+    transition: 'border-color 200ms ease, box-shadow 200ms ease',
+  };
+
+  const inputFocusProps = {
+    onFocus: (e) => {
+      e.target.style.borderColor = 'var(--color-primary)';
+      e.target.style.boxShadow = '0 0 0 3px rgba(108,99,255,0.12)';
+    },
+    onBlur: (e) => {
+      e.target.style.borderColor = 'var(--color-border)';
+      e.target.style.boxShadow = 'none';
+    },
+  };
+
+  const labelStyle = { 
+    display: 'block', 
+    fontSize: '13px', 
+    fontWeight: 600, 
+    color: 'var(--color-text-heading)', 
+    marginBottom: '6px', 
+    marginLeft: '2px' 
+  };
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-800 w-full max-w-md mx-4 overflow-hidden">
+      <div 
+        className="relative w-full max-w-md flex flex-col border border-surface-200 dark:border-surface-800 rounded-[1.5rem] shadow-2xl shadow-surface-500/20 dark:shadow-black/40 animate-in fade-in zoom-in duration-200 overflow-hidden" 
+        style={{ background: 'var(--color-bg-card)' }}
+      >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-surface-100 dark:border-surface-800 flex items-center justify-between">
+        <div className="flex items-center justify-between px-8 py-5" style={{ borderBottom: '0.5px solid var(--color-border)', background: 'var(--color-bg-surface)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-              <FolderPlus className="w-4.5 h-4.5 text-primary-600 dark:text-primary-400" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+              <FolderPlus className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold text-surface-900 dark:text-white">Create Workspace</h2>
+            <h2 className="text-lg font-extrabold tracking-tight" style={{ color: 'var(--color-text-heading)' }}>
+              Create Workspace
+            </h2>
           </div>
-          <button onClick={onClose} className="p-1.5 text-surface-400 hover:text-surface-700 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg transition-colors">
-            <X className="w-4.5 h-4.5" />
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-xl text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6">
-          {/* Preview */}
-          <div className="flex items-center gap-4 mb-6 p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200/50 dark:border-surface-700/50">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-primary-500/25 shrink-0">
-              {initials || '?'}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-surface-900 dark:text-white truncate">
-                {name.trim() || 'Workspace Name'}
-              </p>
-              <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                1 member · Just now
-              </p>
-            </div>
-          </div>
-
-          {/* Name Input */}
-          <div className="mb-6">
-            <label htmlFor="ws-name" className="block text-sm font-semibold text-surface-700 dark:text-surface-300 mb-2">
-              Workspace Name
-            </label>
-            <input
-              id="ws-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Dev Team, Marketing..."
-              maxLength={100}
-              className="w-full px-4 py-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl text-sm text-surface-900 dark:text-white placeholder:text-surface-400 outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
-              autoFocus
-            />
-            <p className="text-xs text-surface-400 mt-1.5 pl-1">
-              This will generate initials: <span className="font-bold text-primary-600 dark:text-primary-400">{initials || '—'}</span>
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 text-sm font-semibold text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-colors"
+        {/* Body Container */}
+        <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--color-bg-card)' }}>
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            {/* Preview Card */}
+            <div 
+              className="flex items-center gap-4 p-4 rounded-xl border"
+              style={{ 
+                background: 'var(--color-bg-surface)', 
+                borderColor: 'var(--color-border)' 
+              }}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!name.trim() || loading}
-              className="px-5 py-2.5 bg-primary-600 text-white text-sm font-bold rounded-xl shadow-md shadow-primary-500/25 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-            >
-              {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
-              ) : (
-                <><FolderPlus className="w-4 h-4" /> Create Workspace</>
-              )}
-            </button>
-          </div>
-        </form>
+              <div 
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+                  boxShadow: '0 4px 14px 0 rgba(108,99,255,0.25)'
+                }}
+              >
+                {initials || '?'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text-heading)' }}>
+                  {name.trim() || 'Workspace Name'}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                  1 member · Just now
+                </p>
+              </div>
+            </div>
+
+            {/* Input Field */}
+            <div>
+              <label htmlFor="ws-name" style={labelStyle}>Workspace Name</label>
+              <input
+                id="ws-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={inputStyle}
+                {...inputFocusProps}
+                placeholder="e.g. Dev Team, Marketing..."
+                maxLength={100}
+                required
+                autoFocus
+              />
+              <p className="text-xs mt-1.5 pl-1" style={{ color: 'var(--color-text-muted)' }}>
+                This will generate initials: <span className="font-bold" style={{ color: 'var(--color-primary)' }}>{initials || '—'}</span>
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-6 mt-4" style={{ borderTop: '0.5px solid var(--color-border)' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-text-body)';
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-text-muted)';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!name.trim() || loading}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:scale-95 flex items-center gap-2"
+                style={{ 
+                  background: 'var(--color-primary)', 
+                  color: 'white',
+                  boxShadow: '0 4px 14px 0 rgba(108,99,255,0.39)'
+                }}
+                onMouseEnter={(e) => {
+                  if(!loading && name.trim()) e.currentTarget.style.filter = 'brightness(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  if(!loading && name.trim()) e.currentTarget.style.filter = 'brightness(1)';
+                }}
+              >
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
+                ) : (
+                  <><FolderPlus className="w-4 h-4" /> Create Workspace</>
+                )}
+              </button>
+            </div>
+
+          </form>
+        </div>
       </div>
     </div>
   );

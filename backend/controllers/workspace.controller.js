@@ -18,19 +18,6 @@ const getWorkspaceSummaries = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Workspace summaries retrieved', { workspaces: summaries });
 });
 
-const inviteMember = asyncHandler(async (req, res) => {
-  const { workspaceId, email } = req.body;
-  const workspace = await workspaceService.inviteMember(workspaceId, email);
-  
-  // Try to find the newly added member to emit
-  const newMember = workspace.members.find(m => m.user.email === email);
-  if (newMember) {
-    getIO().emit('member_added', { workspaceId, member: newMember });
-  }
-
-  sendResponse(res, 200, 'Member invited successfully', { workspace });
-});
-
 const getMembers = asyncHandler(async (req, res) => {
   const members = await workspaceService.getMembers(req.params.id);
   sendResponse(res, 200, 'Members retrieved successfully', { members });
@@ -80,7 +67,6 @@ module.exports = {
   createWorkspace, 
   getWorkspaces, 
   getWorkspaceSummaries, 
-  inviteMember, 
   getMembers, 
   changeRole,
   updateWorkspace,

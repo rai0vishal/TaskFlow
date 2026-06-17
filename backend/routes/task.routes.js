@@ -2,7 +2,7 @@ const router = require('express').Router();
 const taskController = require('../controllers/task.controller');
 const { authenticate } = require('../middleware/auth');
 const validate = require('../middleware/validate');
-const { createTaskSchema, updateTaskSchema } = require('../validations/task.validation');
+const { createTaskSchema, updateTaskSchema, assignTaskSchema } = require('../validations/task.validation');
 
 // All task routes require authentication
 router.use(authenticate);
@@ -17,7 +17,7 @@ router
 
 router.get('/workspace/:workspaceId', taskController.getTasks);
 
-router.patch('/assign', taskController.assignTask);
+router.patch('/assign', validate(assignTaskSchema), taskController.assignTask);
 
 /**
  * GET    /api/v1/tasks/:id   — Get task by ID

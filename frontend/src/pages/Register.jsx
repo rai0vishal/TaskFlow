@@ -37,30 +37,29 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-950 p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-bg-page p-4 relative overflow-hidden font-sans">
       {/* Subtle background glow - animated */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-900/40 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" />
 
       <div className="w-full max-w-[420px] relative z-10 animate-fade-in">
         {/* Simple Brand/Icon Header */}
         <div className="text-center mb-8 animate-slide-up">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-surface-900 border border-surface-800 shadow-lg mb-5 relative group cursor-pointer hover:border-primary-500/50 transition-colors">
-            <UserPlus className="w-7 h-7 text-primary-400 group-hover:scale-110 transition-transform duration-300" />
-            <div className="absolute inset-0 bg-primary-500/20 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-bg-surface border border-border shadow-lg mb-5 relative group cursor-pointer hover:border-primary/50 transition-colors">
+            <UserPlus className="w-7 h-7 text-primary group-hover:scale-110 transition-transform duration-300" />
+            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Create an account</h1>
-          <p className="text-sm text-surface-400 mt-2 font-medium">Join us to manage your tasks efficiently</p>
+          <h1 className="text-3xl font-extrabold text-text-heading tracking-tight">Create an account</h1>
+          <p className="text-sm text-text-muted mt-2 font-medium">Join us to manage your tasks efficiently</p>
         </div>
 
         {/* Minimalist Card */}
-        <div className="bg-surface-900/60 backdrop-blur-xl border border-surface-800/60 rounded-[1.5rem] p-8 md:p-10 shadow-2xl shadow-black/40 animate-slide-up delay-100">
+        <div className="bg-bg-card/80 backdrop-blur-xl border border-border rounded-[1.5rem] p-8 md:p-10 shadow-2xl shadow-black/5 animate-slide-up delay-100">
           <form onSubmit={handleSubmit} className="space-y-6">
             <FormInput
               label="Full Name"
               id="name"
               name="name"
               type="text"
-              theme="dark"
               placeholder="Enter your name"
               value={form.name}
               onChange={handleChange}
@@ -73,7 +72,6 @@ export default function Register() {
               id="email"
               name="email"
               type="email"
-              theme="dark"
               placeholder="Enter your email"
               value={form.email}
               onChange={handleChange}
@@ -85,7 +83,6 @@ export default function Register() {
               id="password"
               name="password"
               type="password"
-              theme="dark"
               placeholder="Min 8 chars, upper+lower+number"
               value={form.password}
               onChange={handleChange}
@@ -96,7 +93,7 @@ export default function Register() {
             <Button
               type="submit"
               isLoading={loading}
-              className="w-full mt-6 shadow-primary-900/50"
+              className="w-full mt-6 shadow-primary/20"
               size="lg"
             >
               Create Account
@@ -104,9 +101,9 @@ export default function Register() {
           </form>
         </div>
 
-        <p className="mt-8 text-center text-sm text-surface-400 font-medium animate-slide-up delay-200">
+        <p className="mt-8 text-center text-sm text-text-muted font-medium animate-slide-up delay-200">
           Already have an account?{' '}
-          <Link to="/login" className="text-primary-400 hover:text-primary-300 font-bold hover:underline underline-offset-4 transition-colors">
+          <Link to="/login" className="text-primary hover:text-primary-dark font-bold hover:underline underline-offset-4 transition-colors">
             Sign in here
           </Link>
         </p>

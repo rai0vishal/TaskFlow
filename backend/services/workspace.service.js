@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
 const Message = require('../models/Message');
@@ -13,22 +14,6 @@ const getWorkspaces = async (user) => {
     .populate('owner', 'name email')
     .populate('members.user', 'name email')
     .sort({ createdAt: -1 });
-};
-
-const inviteMember = async (workspaceId, email) => {
-  const user = await User.findOne({ email });
-  if (!user) throw ApiError.notFound('User not found');
-
-  const workspace = await Workspace.findById(workspaceId);
-  if (!workspace) throw ApiError.notFound('Workspace not found');
-
-  const isMember = workspace.members.some((m) => m.user.toString() === user._id.toString());
-  if (isMember) throw ApiError.badRequest('User is already a member of this workspace');
-
-  workspace.members.push({ user: user._id, role: 'member' });
-  await workspace.save();
-
-  return await Workspace.findById(workspaceId).populate('members.user', 'name email role');
 };
 
 const getMembers = async (workspaceId) => {
@@ -68,35 +53,80 @@ const getWorkspaceSummaries = async (user) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Get last message and unread count for each workspace in parallel for performance
-  const summaries = await Promise.all(
-    workspaces.map(async (ws) => {
-      const [lastMessage, unreadCount] = await Promise.all([
-        Message.findOne({ workspace: ws._id })
-          .sort({ createdAt: -1 })
-          .select('text sender createdAt')
-          .populate('sender', 'name')
-          .lean(),
-        Message.countDocuments({
-          workspace: ws._id,
-          seenBy: { $ne: user._id },
-          sender: { $ne: user._id },
-        }),
-      ]);
+  if (workspaces.length === 0) {
+    return [];
+  }
 
-      return {
-        ...ws,
-        lastMessage: lastMessage
-          ? {
-              text: lastMessage.text,
-              senderName: lastMessage.sender?.name || 'Unknown',
-              createdAt: lastMessage.createdAt,
-            }
-          : null,
-        unreadCount,
-      };
-    })
-  );
+  const wsIds = workspaces.map((ws) => new mongoose.Types.ObjectId(ws._id));
+  const userObjectId = new mongoose.Types.ObjectId(user._id);
+
+  // Get last message and unread count for all workspaces in parallel via aggregation to avoid N+1 queries
+  const [unreadCountsAgg, lastMessagesAgg] = await Promise.all([
+    Message.aggregate([
+      {
+        $match: {
+          workspace: { $in: wsIds },
+          seenBy: { $ne: userObjectId },
+          sender: { $ne: userObjectId }
+        }
+      },
+      {
+        $group: {
+          _id: '$workspace',
+          count: { $sum: 1 }
+        }
+      }
+    ]),
+    Message.aggregate([
+      { $match: { workspace: { $in: wsIds } } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$workspace',
+          lastMsg: { $first: '$$ROOT' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'lastMsg.sender',
+          foreignField: '_id',
+          as: 'senderInfo'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          text: '$lastMsg.text',
+          createdAt: '$lastMsg.createdAt',
+          senderName: { $arrayElemAt: ['$senderInfo.name', 0] }
+        }
+      }
+    ])
+  ]);
+
+  const unreadMap = {};
+  unreadCountsAgg.forEach((item) => {
+    unreadMap[item._id.toString()] = item.count;
+  });
+
+  const lastMsgMap = {};
+  lastMessagesAgg.forEach((item) => {
+    lastMsgMap[item._id.toString()] = {
+      text: item.text,
+      senderName: item.senderName || 'Unknown',
+      createdAt: item.createdAt
+    };
+  });
+
+  const summaries = workspaces.map((ws) => {
+    const wsIdStr = ws._id.toString();
+    return {
+      ...ws,
+      lastMessage: lastMsgMap[wsIdStr] || null,
+      unreadCount: unreadMap[wsIdStr] || 0
+    };
+  });
 
   return summaries;
 };
@@ -159,6 +189,15 @@ const leaveWorkspace = async (workspaceId, userId) => {
   }
 
   workspace.members.splice(memberIndex, 1);
+  
+  // Track that this user left the workspace to authorize potential rejoining later
+  if (!workspace.leftMembers) {
+    workspace.leftMembers = [];
+  }
+  if (!workspace.leftMembers.some(id => id.toString() === userId.toString())) {
+    workspace.leftMembers.push(userId);
+  }
+  
   await workspace.save();
 
   return workspace;
@@ -195,6 +234,19 @@ const rejoinWorkspace = async (workspaceId, userId) => {
   const isMember = workspace.members.some((m) => m.user.toString() === userId.toString());
   if (isMember) return workspace;
 
+  // Security Hardening: Only allow rejoins if user is in leftMembers history or is the workspace owner
+  const isOwner = workspace.owner.toString() === userId.toString();
+  const hasLeftHistory = workspace.leftMembers && workspace.leftMembers.some(id => id.toString() === userId.toString());
+
+  if (!isOwner && !hasLeftHistory) {
+    throw ApiError.forbidden('You are not authorized to rejoin this workspace without an invite');
+  }
+
+  // Remove from leftMembers history if present
+  if (workspace.leftMembers) {
+    workspace.leftMembers = workspace.leftMembers.filter(id => id.toString() !== userId.toString());
+  }
+
   // Add back as member
   workspace.members.push({ user: userId, role: 'member' });
   await workspace.save();
@@ -206,7 +258,6 @@ module.exports = {
   createWorkspace, 
   getWorkspaces, 
   getWorkspaceSummaries, 
-  inviteMember, 
   getMembers, 
   changeRole,
   updateWorkspace,
