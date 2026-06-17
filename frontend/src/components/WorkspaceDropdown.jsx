@@ -34,7 +34,7 @@ function timeAgo(dateStr) {
   return `${Math.floor(days / 7)}w`;
 }
 
-export default function WorkspaceDropdown() {
+export default function WorkspaceDropdown({ isHome }) {
   const {
     activeWorkspace,
     setActiveWorkspace,
@@ -83,12 +83,12 @@ export default function WorkspaceDropdown() {
           onClick={() => setIsOpen(!isOpen)}
           style={{
             background: 'transparent',
-            border: '0.5px solid var(--color-border)',
+            border: isHome ? '0.5px solid rgba(255, 255, 255, 0.15)' : '0.5px solid var(--color-border)',
             borderRadius: 'var(--radius-sm)',
             padding: '5px 10px',
             fontSize: '13px',
             fontWeight: 500,
-            color: 'var(--color-text-body)',
+            color: isHome ? 'rgba(255, 255, 255, 0.8)' : 'var(--color-text-body)',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
@@ -96,13 +96,13 @@ export default function WorkspaceDropdown() {
             transition: 'border-color 200ms ease, color 200ms ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-primary)';
-            e.currentTarget.style.color = 'var(--color-text-heading)';
+            e.currentTarget.style.borderColor = isHome ? 'rgba(255, 255, 255, 0.4)' : 'var(--color-primary)';
+            e.currentTarget.style.color = isHome ? 'white' : 'var(--color-text-heading)';
           }}
           onMouseLeave={(e) => {
             if (!isOpen) {
-              e.currentTarget.style.borderColor = 'var(--color-border)';
-              e.currentTarget.style.color = 'var(--color-text-body)';
+              e.currentTarget.style.borderColor = isHome ? 'rgba(255, 255, 255, 0.15)' : 'var(--color-border)';
+              e.currentTarget.style.color = isHome ? 'rgba(255, 255, 255, 0.8)' : 'var(--color-text-body)';
             }
           }}
         >
@@ -123,7 +123,7 @@ export default function WorkspaceDropdown() {
             </span>
           )}
 
-          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--color-text-muted)' }} />
+          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} style={{ color: isHome ? 'rgba(255, 255, 255, 0.5)' : 'var(--color-text-muted)' }} />
         </button>
 
         {/* Dropdown Panel */}

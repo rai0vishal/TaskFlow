@@ -78,7 +78,17 @@ const updateTaskSchema = z.object({
   order: z.number().optional(),
 });
 
+const assignTaskSchema = z.object({
+  taskId: z
+    .string({ required_error: 'Task ID is required' })
+    .regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId'),
+  assignedTo: z
+    .string({ required_error: 'Assignee ID is required' })
+    .regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid ObjectId'),
+});
+
 module.exports = {
   createTaskSchema,
   updateTaskSchema,
+  assignTaskSchema,
 };

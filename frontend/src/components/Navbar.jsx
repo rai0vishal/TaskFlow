@@ -50,7 +50,7 @@ export default function Navbar() {
         const activeNotifs = [];
 
         tasks.forEach(task => {
-          if (task.status === 'completed' || !task.dueDate) return;
+          if (task.status === 'done' || !task.dueDate) return;
 
           const due = new Date(task.dueDate);
           const diffMs = due - now;
@@ -100,14 +100,16 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  const isHome = location.pathname === '/';
+
   const linkClass = (path) =>
     `flex items-center gap-2 px-[14px] py-[6px] rounded-[var(--radius-sm)] text-[14px] font-medium transition-all duration-200 ${
       location.pathname === path
         ? 'bg-primary-light text-primary'
-        : 'text-text-muted hover:text-text-body'
+        : isHome
+          ? 'text-white/60 hover:text-white hover:bg-white/5'
+          : 'text-text-muted hover:text-text-body'
     }`;
-
-  const isHome = location.pathname === '/' && !user;
 
   return (
     <nav className={`sticky top-0 z-50 transition-colors duration-300 ${
@@ -151,7 +153,7 @@ export default function Navbar() {
                {/* Enhanced Right Menu including Workspace Selector */}
               <div className="flex items-center gap-3 sm:gap-4 ml-auto">
                 <div className="hidden sm:block">
-                  <WorkspaceDropdown />
+                  <WorkspaceDropdown isHome={isHome} />
                 </div>
 
                 {/* Quick Actions */}
@@ -200,7 +202,15 @@ export default function Navbar() {
                 <div className="relative" ref={notifRef}>
                   <button
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className={`relative w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] hover:scale-105 transition-all duration-200 shrink-0 ${showNotifications ? 'bg-bg-surface text-text-heading' : 'text-text-muted hover:text-text-heading hover:bg-bg-surface'}`}
+                    className={`relative w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] hover:scale-105 transition-all duration-200 shrink-0 ${
+                      showNotifications
+                        ? isHome
+                          ? 'bg-white/10 text-white'
+                          : 'bg-bg-surface text-text-heading'
+                        : isHome
+                          ? 'text-white/60 hover:text-white hover:bg-white/10'
+                          : 'text-text-muted hover:text-text-heading hover:bg-bg-surface'
+                    }`}
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
@@ -266,8 +276,8 @@ export default function Navbar() {
                     width: '32px',
                     height: '32px',
                     borderRadius: 'var(--radius-sm)',
-                    background: 'var(--color-bg-surface)',
-                    border: '0.5px solid var(--color-border)',
+                    background: isHome ? 'transparent' : 'var(--color-bg-surface)',
+                    border: isHome ? '0.5px solid rgba(255, 255, 255, 0.15)' : '0.5px solid var(--color-border)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -286,7 +296,7 @@ export default function Navbar() {
                   >
                     {isDark ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" 
-                        fill="none" stroke="var(--color-text-muted)" 
+                        fill="none" stroke={isHome ? 'rgba(255, 255, 255, 0.6)' : 'var(--color-text-muted)'} 
                         strokeWidth="2" strokeLinecap="round">
                         <circle cx="12" cy="12" r="4"/>
                         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41
@@ -295,7 +305,7 @@ export default function Navbar() {
                       </svg>
                     ) : (
                       <svg width="18" height="18" viewBox="0 0 24 24"
-                        fill="none" stroke="var(--color-text-muted)"
+                        fill="none" stroke={isHome ? 'rgba(255, 255, 255, 0.6)' : 'var(--color-text-muted)'}
                         strokeWidth="2" strokeLinecap="round">
                         <path d="M21 12.79A9 9 0 1111.21 3 
                           7 7 0 0021 12.79z"/>
@@ -313,7 +323,11 @@ export default function Navbar() {
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-sm)] text-text-muted hover:text-danger hover:bg-danger-bg transition-all duration-200 shrink-0"
+                  className={`flex items-center justify-center w-8 h-8 rounded-[var(--radius-sm)] transition-all duration-200 shrink-0 ${
+                    isHome 
+                      ? 'text-white/60 hover:text-danger hover:bg-danger-bg' 
+                      : 'text-text-muted hover:text-danger hover:bg-danger-bg'
+                  }`}
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -322,7 +336,11 @@ export default function Navbar() {
                 {/* Mobile Menu Toggle */}
                 <button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="lg:hidden w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:text-text-heading hover:bg-bg-surface transition-colors shrink-0"
+                  className={`lg:hidden w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] transition-colors shrink-0 ${
+                    isHome 
+                      ? 'text-white/60 hover:text-white hover:bg-white/10' 
+                      : 'text-text-muted hover:text-text-heading hover:bg-bg-surface'
+                  }`}
                 >
                   {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
                 </button>
@@ -345,33 +363,49 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {user && isMobileMenuOpen && (
-        <div className="lg:hidden border-t-[0.5px] border-border bg-bg-navbar absolute left-0 right-0 top-[65px] shadow-xl">
+        <div className={`lg:hidden border-t-[0.5px] absolute left-0 right-0 top-[65px] shadow-xl ${
+          isHome
+            ? 'landing-dark border-white/[0.06]'
+            : 'border-border bg-bg-navbar'
+        }`}>
           <div className="px-4 py-4 space-y-3">
             <Link 
               to="/dashboard" 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-[var(--radius-sm)] text-text-body hover:bg-bg-surface transition-colors font-semibold"
+              className={`flex items-center gap-3 p-3 rounded-[var(--radius-sm)] transition-colors font-semibold ${
+                isHome
+                  ? 'text-white/80 hover:bg-white/5'
+                  : 'text-text-body hover:bg-bg-surface'
+              }`}
             >
               <LayoutDashboard className="w-5 h-5" /> Dashboard
             </Link>
             <Link 
               to="/tasks" 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-[var(--radius-sm)] text-text-body hover:bg-bg-surface transition-colors font-semibold"
+              className={`flex items-center gap-3 p-3 rounded-[var(--radius-sm)] transition-colors font-semibold ${
+                isHome
+                  ? 'text-white/80 hover:bg-white/5'
+                  : 'text-text-body hover:bg-bg-surface'
+              }`}
             >
               <ListTodo className="w-5 h-5" /> Tasks
             </Link>
             <Link 
               to="/analytics" 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 p-3 rounded-[var(--radius-sm)] text-text-body hover:bg-bg-surface transition-colors font-semibold"
+              className={`flex items-center gap-3 p-3 rounded-[var(--radius-sm)] transition-colors font-semibold ${
+                isHome
+                  ? 'text-white/80 hover:bg-white/5'
+                  : 'text-text-body hover:bg-bg-surface'
+              }`}
             >
               <BarChart2 className="w-5 h-5" /> Analytics
             </Link>
 
-            <div className="pt-4 border-t-[0.5px] border-border px-3">
-              <p className="text-[10px] font-black text-text-hint uppercase tracking-widest mb-3">Switch Workspace</p>
-              <WorkspaceDropdown />
+            <div className={`pt-4 border-t-[0.5px] px-3 ${isHome ? 'border-white/[0.06]' : 'border-border'}`}>
+              <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${isHome ? 'text-white/40' : 'text-text-hint'}`}>Switch Workspace</p>
+              <WorkspaceDropdown isHome={isHome} />
             </div>
           </div>
         </div>

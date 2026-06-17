@@ -20,6 +20,11 @@ module.exports = {
     io.on('connection', (socket) => {
       logger.info(`Socket connected: ${socket.id}`);
 
+      // Handle socket error events gracefully
+      socket.on('error', (err) => {
+        logger.error(`Socket error on client ${socket.id}:`, err);
+      });
+
       // General user joining
       socket.on('joinUserRoom', (userId) => {
         socket.join(`user_${userId}`);

@@ -42,28 +42,49 @@ const startServer = async () => {
       const activeTasks = await Task.find({ status: { $in: ['todo', 'in-progress', 'in-review'] }, dueDate: { $ne: null } });
       let updatedCount = 0;
 
-      for (const task of activeTasks) {
-        const activeTasksCount = await Task.countDocuments({
-          createdBy: task.createdBy,
-          status: { $in: ['todo', 'in-progress'] }
-        });
-
-        const { priorityScore, priorityLabel } = calculatePriority({
-          dueDate: task.dueDate,
-          complexity: task.complexity,
-          activeTasksCount
-        });
-
-        if (task.priorityScore !== priorityScore || task.priorityLabel !== priorityLabel) {
-          task.priorityScore = priorityScore;
-          task.priorityLabel = priorityLabel;
-          await task.save();
-          updatedCount++;
-          
-          if (task.board) {
-            socketModule.getIO().to(`board_${task.board}`).emit('taskUpdated', task);
+      if (activeTasks.length > 0) {
+        // Collect all unique user IDs to query active counts in one aggregation
+        const userIds = [...new Set(activeTasks.map((t) => t.createdBy?.toString()).filter(Boolean))];
+        
+        // Aggregate active tasks count grouped by user
+        const countsAgg = await Task.aggregate([
+          {
+            $match: {
+              createdBy: { $in: userIds.map((id) => new (require('mongoose').Types.ObjectId)(id)) },
+              status: { $in: ['todo', 'in-progress'] }
+            }
+          },
+          {
+            $group: {
+              _id: '$createdBy',
+              count: { $sum: 1 }
+            }
           }
-          socketModule.getIO().to(`user_${task.createdBy}`).emit('taskUpdated', task);
+        ]);
+
+        const countsMap = new Map(countsAgg.map((item) => [item._id.toString(), item.count]));
+
+        for (const task of activeTasks) {
+          const userIdStr = task.createdBy ? task.createdBy.toString() : '';
+          const activeTasksCount = countsMap.get(userIdStr) || 0;
+
+          const { priorityScore, priorityLabel } = calculatePriority({
+            dueDate: task.dueDate,
+            complexity: task.complexity,
+            activeTasksCount
+          });
+
+          if (task.priorityScore !== priorityScore || task.priorityLabel !== priorityLabel) {
+            task.priorityScore = priorityScore;
+            task.priorityLabel = priorityLabel;
+            await task.save();
+            updatedCount++;
+            
+            if (task.board) {
+              socketModule.getIO().to(`board_${task.board}`).emit('taskUpdated', task);
+            }
+            socketModule.getIO().to(`user_${task.createdBy}`).emit('taskUpdated', task);
+          }
         }
       }
       logger.info(`Nightly cron finished. Escalated ${updatedCount} task(s).`);

@@ -29,56 +29,69 @@ export default function InviteModal({ isOpen, onClose, workspace }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal */}
       <div 
-        className="absolute inset-0 bg-surface-950/40 backdrop-blur-sm animate-in fade-in duration-300" 
-        onClick={onClose} 
-      />
-      <div className="relative w-full max-w-md bg-white dark:bg-surface-900 rounded-3xl shadow-2xl border border-surface-200 dark:border-surface-800 p-8 overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
-        
-        <div className="flex items-center justify-between mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-600 dark:text-primary-400">
-            <UserPlus className="w-6 h-6" />
+        className="relative w-full max-w-md flex flex-col border border-surface-200 dark:border-surface-800 rounded-[1.5rem] shadow-2xl shadow-surface-500/20 dark:shadow-black/40 animate-in fade-in zoom-in duration-200 overflow-hidden" 
+        style={{ background: 'var(--color-bg-card)' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 py-5" style={{ borderBottom: '0.5px solid var(--color-border)', background: 'var(--color-bg-surface)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+              <UserPlus className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-extrabold tracking-tight" style={{ color: 'var(--color-text-heading)' }}>
+              Invite Team Member
+            </h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-colors text-surface-400">
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-xl text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-2xl font-black text-surface-900 dark:text-white mb-2">Invite Team Member</h2>
-          <p className="text-sm font-medium text-surface-500 dark:text-surface-400">
-            Expand your team in <span className="text-primary-600 dark:text-primary-400 font-bold">{workspace?.name}</span>
-          </p>
-        </div>
+        {/* Body Container */}
+        <div className="flex-1 overflow-y-auto min-h-0" style={{ background: 'var(--color-bg-card)' }}>
+          <form onSubmit={handleInvite} className="p-8 space-y-6">
+            <div>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-body)' }}>
+                Expand your team in <span className="font-bold" style={{ color: 'var(--color-primary)' }}>{workspace?.name}</span>
+              </p>
+            </div>
 
-        <form onSubmit={handleInvite} className="space-y-6">
-          <FormInput
-            label="Email Address"
-            type="email"
-            placeholder="colleague@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            icon={Mail}
-            required
-            autoFocus
-          />
-          
-          <div className="pt-2 flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={onClose} type="button">
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={loading || !email} 
-              className="flex-1 gap-2"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              Send Invite
-            </Button>
-          </div>
-        </form>
+            <FormInput
+              label="Email Address"
+              type="email"
+              placeholder="colleague@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              icon={Mail}
+              required
+              autoFocus
+            />
+            
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-6 mt-4" style={{ borderTop: '0.5px solid var(--color-border)' }}>
+              <Button variant="ghost" className="flex-1" onClick={onClose} type="button">
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={loading || !email} 
+                className="flex-1 gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                Send Invite
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

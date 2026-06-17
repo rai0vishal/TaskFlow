@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Primary */
   --color-primary:         #6C63FF;
@@ -8,11 +10,37 @@
   --color-primary-light:   #EDE9FF;
   --color-primary-tint:    #F7F6FF;
 
+  /* Primary Shades */
+  --color-primary-50:      #F7F6FF;
+  --color-primary-100:     #EDE9FF;
+  --color-primary-200:     #D7CFFF;
+  --color-primary-300:     #B7A8FF;
+  --color-primary-400:     #9382FF;
+  --color-primary-500:     #6C63FF;
+  --color-primary-600:     #5B52C7;
+  --color-primary-700:     #4B42A6;
+  --color-primary-800:     #3A3285;
+  --color-primary-900:     #292364;
+  --color-primary-950:     #171442;
+
   /* Page & surfaces */
   --color-bg-page:         #F7F6FF;
   --color-bg-card:         #FFFFFF;
   --color-bg-surface:      #F0EEFF;
   --color-bg-navbar:       #FFFFFF;
+
+  /* Surface Shades */
+  --color-surface-50:      #F7F6FF;
+  --color-surface-100:     #F0EEFF;
+  --color-surface-200:     #E0DCFF;
+  --color-surface-300:     #D0C9FF;
+  --color-surface-400:     #9CA3AF;
+  --color-surface-500:     #6B7280;
+  --color-surface-600:     #4B5563;
+  --color-surface-700:     #374151;
+  --color-surface-800:     #1F2937;
+  --color-surface-900:     #1E1B4B;
+  --color-surface-950:     #0F0D2E;
 
   /* Borders */
   --color-border:          #E0DCFF;
@@ -77,6 +105,32 @@
     --color-info:            #60A5FA;
     --color-info-bg:         #0A1A2E;
     --color-info-border:     #1A3050;
+
+    /* Primary Shades (Dark) */
+    --color-primary-50:      #F7F6FF;
+    --color-primary-100:     #EDE9FF;
+    --color-primary-200:     #D7CFFF;
+    --color-primary-300:     #B7A8FF;
+    --color-primary-400:     #9488F5;
+    --color-primary-500:     #7C6FE0;
+    --color-primary-600:     #675BC2;
+    --color-primary-700:     #534AA4;
+    --color-primary-800:     #3F3885;
+    --color-primary-900:     #1E1B35;
+    --color-primary-950:     #13111E;
+
+    /* Surface Shades (Dark) */
+    --color-surface-50:      #E8E6FF;
+    --color-surface-100:     #D0CBEA;
+    --color-surface-200:     #B4AFD5;
+    --color-surface-300:     #A0A8C0;
+    --color-surface-400:     #8280A5;
+    --color-surface-500:     #6B6890;
+    --color-surface-600:     #4B4870;
+    --color-surface-700:     #2D2B4E;
+    --color-surface-800:     #1E1C38;
+    --color-surface-900:     #13111E;
+    --color-surface-950:     #0D0B17;
   }
 }
 
@@ -127,6 +181,18 @@
   --color-text-body: var(--color-text-body);
   --color-text-muted: var(--color-text-muted);
   --color-text-hint: var(--color-text-hint);
+
+  --color-surface-50: var(--color-surface-50);
+  --color-surface-100: var(--color-surface-100);
+  --color-surface-200: var(--color-surface-200);
+  --color-surface-300: var(--color-surface-300);
+  --color-surface-400: var(--color-surface-400);
+  --color-surface-500: var(--color-surface-500);
+  --color-surface-600: var(--color-surface-600);
+  --color-surface-700: var(--color-surface-700);
+  --color-surface-800: var(--color-surface-800);
+  --color-surface-900: var(--color-surface-900);
+  --color-surface-950: var(--color-surface-950);
   
   --color-success: var(--color-success);
   --color-success-bg: var(--color-success-bg);

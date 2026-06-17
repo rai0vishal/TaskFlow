@@ -6,7 +6,6 @@ const validate = require('../middleware/validate');
 const {
   createWorkspaceSchema,
   updateWorkspaceSchema,
-  inviteMemberSchema,
   changeRoleSchema,
   transferOwnershipSchema,
 } = require('../validations/workspace.validation');
@@ -18,7 +17,6 @@ router.post('/', validate(createWorkspaceSchema), workspaceController.createWork
 router.get('/', workspaceController.getWorkspaces);
 router.get('/summaries', workspaceController.getWorkspaceSummaries);
 
-router.post('/invite', verifyWorkspaceAccess(true), validate(inviteMemberSchema), workspaceController.inviteMember);
 router.get('/:id/members', verifyWorkspaceAccess(false), workspaceController.getMembers);
 router.patch('/role', verifyWorkspaceAccess(true), validate(changeRoleSchema), workspaceController.changeRole);
 
