@@ -30,7 +30,16 @@
 
 ## 📸 Screenshots
 
-
+<table>
+<tr>
+<td align="center" width="50%"><img src="docs/screenshots/kanban_drag.gif" width="100%"/><br/><sub><b>Kanban board with live drag-and-drop</b></sub></td>
+<td align="center" width="50%"><img src="docs/screenshots/chat_realtime.gif" width="100%"/><br/><sub><b>Real-time chat with typing indicators</b></sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><img src="docs/screenshots/analytics_charts.png" width="100%"/><br/><sub><b>Productivity trend & weekly distribution</b></sub></td>
+<td align="center" width="50%"><img src="docs/screenshots/profile_heatmap.png" width="100%"/><br/><sub><b>90-day contribution heatmap</b></sub></td>
+</tr>
+</table>
 
 
 ![Kanban drag-and-drop](docs/screenshots/kanban_drag.gif)
