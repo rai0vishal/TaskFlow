@@ -39,12 +39,12 @@
 | Analytics page showing the productivity trend chart + weekly distribution | `analytics_charts.png` |
 | Profile page showing the 90-day contribution heatmap | `profile_heatmap.png` |
 
-```
+
 ![Kanban drag-and-drop](docs/screenshots/kanban_drag.gif)
 ![Real-time chat](docs/screenshots/chat_realtime.gif)
 ![Analytics charts](docs/screenshots/analytics_charts.png)
 ![Profile heatmap](docs/screenshots/profile_heatmap.png)
-```
+
 
 ---
 
