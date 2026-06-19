@@ -30,14 +30,7 @@
 
 ## 📸 Screenshots
 
-> **TODO for Vishal:** Capture and place the following screenshots in `docs/screenshots/`:
 
-| What to capture | Filename |
-|---|---|
-| Kanban board with a card mid-drag between columns | `kanban_drag.gif` |
-| Real-time chat panel open in dark mode with typing indicator | `chat_realtime.gif` |
-| Analytics page showing the productivity trend chart + weekly distribution | `analytics_charts.png` |
-| Profile page showing the 90-day contribution heatmap | `profile_heatmap.png` |
 
 
 ![Kanban drag-and-drop](docs/screenshots/kanban_drag.gif)
