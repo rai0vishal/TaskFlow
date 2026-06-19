@@ -24,7 +24,9 @@
 
 > ⚡ **Note:** Backend is on Render's free tier — first request after inactivity may take ~30 seconds to cold-start.
 
-> 🔑 **Demo credentials:** No seed/demo user is configured. Register a free account to explore the app. *(See roadmap: demo seed script is a planned addition.)*
+> 🔑 **Try it live:** Log in with `aanya.demo@taskflow.local` / `Demo@1234` on the [live demo](https://task-flow-omega-khaki.vercel.app), or register your own free account. (Note: this is a shared demo account — data may change as other visitors interact with it.)
+
+Want a clean, private dataset instead? Run `npm run seed` locally (see `backend/scripts/seedDemoData.js`) to generate your own realistic 90-day workspace.*
 
 ---
 
@@ -33,7 +35,7 @@
 <table>
 <tr>
 <td align="center" width="50%"><img src="docs/screenshots/kanban_drag.gif" width="100%"/><br/><sub><b>Kanban board with live drag-and-drop</b></sub></td>
-<td align="center" width="50%"><img src="docs/screenshots/chat_realtime.gif" width="100%"/><br/><sub><b>Real-time chat with typing indicators</b></sub></td>
+<td align="center" width="50%"><img src="docs/screenshots/chat_realtime.png" width="100%"/><br/><sub><b>Real-time chat with typing indicators</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="50%"><img src="docs/screenshots/analytics_charts.png" width="100%"/><br/><sub><b>Productivity trend & weekly distribution</b></sub></td>
