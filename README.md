@@ -41,13 +41,6 @@
 </tr>
 </table>
 
-
-![Kanban drag-and-drop](docs/screenshots/kanban_drag.gif)
-![Real-time chat](docs/screenshots/chat_realtime.gif)
-![Analytics charts](docs/screenshots/analytics_charts.png)
-![Profile heatmap](docs/screenshots/profile_heatmap.png)
-
-
 ---
 
 ## ✨ Key Features
