@@ -297,7 +297,6 @@ npm run dev     # Starts on http://localhost:5173 (Vite default)
 ## 👤 Author
 
 **Vishal Rai**
-B.Tech — Computer Science & Engineering
 Full Stack / Backend Developer · [GitHub](https://github.com/rai0vishal)
 
 ---
